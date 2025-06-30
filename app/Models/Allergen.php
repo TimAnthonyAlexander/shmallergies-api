@@ -27,4 +27,4 @@ class Allergen extends Model
     {
         return $this->belongsTo(Ingredient::class);
     }
-} 
+}

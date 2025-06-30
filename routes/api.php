@@ -24,28 +24,28 @@ Route::post('/auth/email/resend', [AuthController::class, 'resendVerificationEma
 // Debug route (remove in production)
 Route::get('/debug/url-config', function () {
     return response()->json([
-        'app_url' => config('app.url'),
-        'app_name' => config('app.name'),
+        'app_url'                 => config('app.url'),
+        'app_name'                => config('app.name'),
         'sample_verification_url' => route('verification.verify', ['id' => 1, 'hash' => 'sample-hash']),
-        'current_domain' => request()->getHost(),
-        'current_scheme' => request()->getScheme(),
-        'full_current_url' => request()->getSchemeAndHttpHost(),
+        'current_domain'          => request()->getHost(),
+        'current_scheme'          => request()->getScheme(),
+        'full_current_url'        => request()->getSchemeAndHttpHost(),
     ]);
 });
 
 // Test email verification (remove in production)
 Route::get('/debug/send-verification/{userId}', function ($userId) {
     $user = \App\Models\User::find($userId);
-    if (!$user) {
+    if (! $user) {
         return response()->json(['error' => 'User not found'], 404);
     }
-    
+
     $user->sendEmailVerificationNotification();
-    
+
     return response()->json([
         'message' => 'Verification email sent',
         'user_id' => $user->id,
-        'email' => $user->email,
+        'email'   => $user->email,
     ]);
 });
 
@@ -68,4 +68,4 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     Route::post('/user/allergies', [UserAllergyController::class, 'store']);
     Route::put('/user/allergies/{id}', [UserAllergyController::class, 'update'])->where('id', '[0-9]+');
     Route::delete('/user/allergies/{id}', [UserAllergyController::class, 'destroy'])->where('id', '[0-9]+');
-}); 
+});

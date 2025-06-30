@@ -36,4 +36,4 @@ class Ingredient extends Model
     {
         return $this->hasMany(Allergen::class);
     }
-} 
+}

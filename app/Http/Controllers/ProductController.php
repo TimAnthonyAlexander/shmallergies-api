@@ -2,27 +2,29 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
-use App\Models\Ingredient;
 use App\Models\Allergen;
+use App\Models\Ingredient;
+use App\Models\Product;
 use App\Services\GPTService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
     /**
-     * Create a new product with ingredient image
-     * 
+     * Create a new product with ingredient image.
+     *
      * @group Products
+     *
      * @authenticated
+     *
      * @bodyParam name string required The product name. Example: Coca Cola
      * @bodyParam upc_code string required The product UPC code (must be unique). Example: 049000028391
      * @bodyParam ingredient_image file required Image of the ingredient list (max 2MB, jpeg/png/jpg/gif).
+     *
      * @response 201 {
      *   "message": "Product created successfully",
      *   "product": {
@@ -40,20 +42,17 @@ class ProductController extends Controller
      *     "upc_code": ["The upc code has already been taken."]
      *   }
      * }
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'upc_code' => 'required|string|max:255|unique:products',
+            'name'             => 'required|string|max:255',
+            'upc_code'         => 'required|string|max:255|unique:products',
             'ingredient_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB max
         ]);
 
         DB::beginTransaction();
-        
+
         try {
             // Handle image upload
             $imagePath = null;
@@ -62,8 +61,8 @@ class ProductController extends Controller
             }
 
             $product = Product::create([
-                'name' => $request->name,
-                'upc_code' => $request->upc_code,
+                'name'                  => $request->name,
+                'upc_code'              => $request->upc_code,
                 'ingredient_image_path' => $imagePath,
             ]);
 
@@ -75,23 +74,22 @@ class ProductController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Product created successfully',
-                'product' => $product->load('ingredients.allergens'),
+                'message'              => 'Product created successfully',
+                'product'              => $product->load('ingredients.allergens'),
                 'ingredient_image_url' => $imagePath ? Storage::url($imagePath) : null,
             ], 201);
-            
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             // Clean up uploaded image if processing failed
             if (isset($imagePath) && $imagePath) {
                 Storage::disk('public')->delete($imagePath);
             }
-            
+
             Log::error('Product creation failed', [
-                'error' => $e->getMessage(),
+                'error'        => $e->getMessage(),
                 'product_name' => $request->name,
-                'upc_code' => $request->upc_code
+                'upc_code'     => $request->upc_code,
             ]);
 
             return response()->json([
@@ -101,11 +99,13 @@ class ProductController extends Controller
     }
 
     /**
-     * Search products by UPC code or name
-     * 
+     * Search products by UPC code or name.
+     *
      * @group Products
+     *
      * @queryParam query string required Search term for product name or UPC code. Example: coca
      * @queryParam limit integer optional Maximum number of results (1-50). Defaults to 10. Example: 20
+     *
      * @response 200 {
      *   "message": "Search completed",
      *   "products": [
@@ -121,9 +121,6 @@ class ProductController extends Controller
      *   ],
      *   "total": 1
      * }
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function search(Request $request): JsonResponse
     {
@@ -142,15 +139,15 @@ class ProductController extends Controller
             ->get();
 
         return response()->json([
-            'message' => 'Search completed',
+            'message'  => 'Search completed',
             'products' => $products->map(function ($product) {
                 return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'upc_code' => $product->upc_code,
+                    'id'                   => $product->id,
+                    'name'                 => $product->name,
+                    'upc_code'             => $product->upc_code,
                     'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
-                    'ingredients_count' => $product->ingredients->count(),
-                    'allergens_count' => $product->ingredients->sum(function ($ingredient) {
+                    'ingredients_count'    => $product->ingredients->count(),
+                    'allergens_count'      => $product->ingredients->sum(function ($ingredient) {
                         return $ingredient->allergens->count();
                     }),
                     'created_at' => $product->created_at,
@@ -161,10 +158,12 @@ class ProductController extends Controller
     }
 
     /**
-     * Get product details with ingredients and allergens
-     * 
+     * Get product details with ingredients and allergens.
+     *
      * @group Products
+     *
      * @urlParam id integer required The product ID. Example: 1
+     *
      * @response 200 {
      *   "message": "Product retrieved successfully",
      *   "product": {
@@ -196,15 +195,12 @@ class ProductController extends Controller
      * @response 404 {
      *   "message": "Product not found"
      * }
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function show(int $id): JsonResponse
     {
         $product = Product::with(['ingredients.allergens'])->find($id);
 
-        if (!$product) {
+        if (! $product) {
             return response()->json([
                 'message' => 'Product not found',
             ], 404);
@@ -213,19 +209,19 @@ class ProductController extends Controller
         return response()->json([
             'message' => 'Product retrieved successfully',
             'product' => [
-                'id' => $product->id,
-                'name' => $product->name,
-                'upc_code' => $product->upc_code,
+                'id'                   => $product->id,
+                'name'                 => $product->name,
+                'upc_code'             => $product->upc_code,
                 'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
-                'created_at' => $product->created_at,
-                'updated_at' => $product->updated_at,
-                'ingredients' => $product->ingredients->map(function ($ingredient) {
+                'created_at'           => $product->created_at,
+                'updated_at'           => $product->updated_at,
+                'ingredients'          => $product->ingredients->map(function ($ingredient) {
                     return [
-                        'id' => $ingredient->id,
-                        'title' => $ingredient->title,
+                        'id'        => $ingredient->id,
+                        'title'     => $ingredient->title,
                         'allergens' => $ingredient->allergens->map(function ($allergen) {
                             return [
-                                'id' => $allergen->id,
+                                'id'   => $allergen->id,
                                 'name' => $allergen->name,
                             ];
                         }),
@@ -236,10 +232,12 @@ class ProductController extends Controller
     }
 
     /**
-     * Get product by UPC code
-     * 
+     * Get product by UPC code.
+     *
      * @group Products
+     *
      * @urlParam upcCode string required The product UPC code. Example: 049000028391
+     *
      * @response 200 {
      *   "message": "Product retrieved successfully",
      *   "product": {
@@ -255,9 +253,6 @@ class ProductController extends Controller
      * @response 404 {
      *   "message": "Product not found"
      * }
-     *
-     * @param string $upcCode
-     * @return JsonResponse
      */
     public function getByUpc(string $upcCode): JsonResponse
     {
@@ -265,7 +260,7 @@ class ProductController extends Controller
             ->with(['ingredients.allergens'])
             ->first();
 
-        if (!$product) {
+        if (! $product) {
             return response()->json([
                 'message' => 'Product not found',
             ], 404);
@@ -274,19 +269,19 @@ class ProductController extends Controller
         return response()->json([
             'message' => 'Product retrieved successfully',
             'product' => [
-                'id' => $product->id,
-                'name' => $product->name,
-                'upc_code' => $product->upc_code,
+                'id'                   => $product->id,
+                'name'                 => $product->name,
+                'upc_code'             => $product->upc_code,
                 'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
-                'created_at' => $product->created_at,
-                'updated_at' => $product->updated_at,
-                'ingredients' => $product->ingredients->map(function ($ingredient) {
+                'created_at'           => $product->created_at,
+                'updated_at'           => $product->updated_at,
+                'ingredients'          => $product->ingredients->map(function ($ingredient) {
                     return [
-                        'id' => $ingredient->id,
-                        'title' => $ingredient->title,
+                        'id'        => $ingredient->id,
+                        'title'     => $ingredient->title,
                         'allergens' => $ingredient->allergens->map(function ($allergen) {
                             return [
-                                'id' => $allergen->id,
+                                'id'   => $allergen->id,
                                 'name' => $allergen->name,
                             ];
                         }),
@@ -297,11 +292,13 @@ class ProductController extends Controller
     }
 
     /**
-     * Get all products with pagination
-     * 
+     * Get all products with pagination.
+     *
      * @group Products
+     *
      * @queryParam page integer optional Page number for pagination. Defaults to 1. Example: 1
      * @queryParam per_page integer optional Number of products per page (1-50). Defaults to 15. Example: 20
+     *
      * @response 200 {
      *   "message": "Products retrieved successfully",
      *   "data": [
@@ -320,9 +317,6 @@ class ProductController extends Controller
      *   "per_page": 15,
      *   "total": 1
      * }
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -338,14 +332,14 @@ class ProductController extends Controller
 
         return response()->json([
             'message' => 'Products retrieved successfully',
-            'data' => $products->getCollection()->map(function ($product) {
+            'data'    => $products->getCollection()->map(function ($product) {
                 return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'upc_code' => $product->upc_code,
+                    'id'                   => $product->id,
+                    'name'                 => $product->name,
+                    'upc_code'             => $product->upc_code,
                     'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
-                    'ingredients_count' => $product->ingredients->count(),
-                    'allergens_count' => $product->ingredients->sum(function ($ingredient) {
+                    'ingredients_count'    => $product->ingredients->count(),
+                    'allergens_count'      => $product->ingredients->sum(function ($ingredient) {
                         return $ingredient->allergens->count();
                     }),
                     'created_at' => $product->created_at,
@@ -353,18 +347,20 @@ class ProductController extends Controller
                 ];
             }),
             'current_page' => $products->currentPage(),
-            'last_page' => $products->lastPage(),
-            'per_page' => $products->perPage(),
-            'total' => $products->total(),
+            'last_page'    => $products->lastPage(),
+            'per_page'     => $products->perPage(),
+            'total'        => $products->total(),
         ]);
     }
 
     /**
-     * Get products with specific allergens
-     * 
+     * Get products with specific allergens.
+     *
      * @group Products
+     *
      * @queryParam allergens string required Comma-separated list of allergen names to filter by. Example: peanuts,dairy
      * @queryParam limit integer optional Maximum number of results (1-50). Defaults to 10. Example: 20
+     *
      * @response 200 {
      *   "message": "Products with allergens retrieved successfully",
      *   "products": [
@@ -382,15 +378,12 @@ class ProductController extends Controller
      *   "total": 1,
      *   "searched_allergens": ["peanuts", "dairy"]
      * }
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function getByAllergens(Request $request): JsonResponse
     {
         $request->validate([
             'allergens' => 'required|string',
-            'limit' => 'sometimes|integer|min:1|max:50',
+            'limit'     => 'sometimes|integer|min:1|max:50',
         ]);
 
         $allergensList = array_map('trim', explode(',', $request->input('allergens')));
@@ -399,12 +392,12 @@ class ProductController extends Controller
         $products = Product::whereHas('ingredients.allergens', function ($query) use ($allergensList) {
             $query->whereIn('name', $allergensList);
         })
-        ->with(['ingredients.allergens'])
-        ->limit($limit)
-        ->get();
+            ->with(['ingredients.allergens'])
+            ->limit($limit)
+            ->get();
 
         return response()->json([
-            'message' => 'Products with allergens retrieved successfully',
+            'message'  => 'Products with allergens retrieved successfully',
             'products' => $products->map(function ($product) use ($allergensList) {
                 $matchingAllergens = $product->ingredients
                     ->flatMap(function ($ingredient) {
@@ -417,25 +410,25 @@ class ProductController extends Controller
                     ->values();
 
                 return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'upc_code' => $product->upc_code,
+                    'id'                   => $product->id,
+                    'name'                 => $product->name,
+                    'upc_code'             => $product->upc_code,
                     'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
-                    'matching_allergens' => $matchingAllergens,
-                    'ingredients_count' => $product->ingredients->count(),
-                    'allergens_count' => $product->ingredients->sum(function ($ingredient) {
+                    'matching_allergens'   => $matchingAllergens,
+                    'ingredients_count'    => $product->ingredients->count(),
+                    'allergens_count'      => $product->ingredients->sum(function ($ingredient) {
                         return $ingredient->allergens->count();
                     }),
                     'created_at' => $product->created_at,
                 ];
             }),
-            'total' => $products->count(),
+            'total'              => $products->count(),
             'searched_allergens' => $allergensList,
         ]);
     }
 
     /**
-     * Process ingredient image using GPT to extract ingredients and allergens
+     * Process ingredient image using GPT to extract ingredients and allergens.
      */
     private function processIngredientImage(Product $product, $imageFile): void
     {
@@ -447,41 +440,40 @@ class ProductController extends Controller
 
             // Initialize GPT service
             $gptService = new GPTService();
-            
+
             // Analyze the ingredient image
             $analysis = $gptService->analyzeIngredientImage($imageBase64, $mimeType);
-            
+
             // Save ingredients and allergens to database
             foreach ($analysis['ingredients'] as $ingredientData) {
                 $ingredient = Ingredient::create([
                     'product_id' => $product->id,
-                    'title' => $ingredientData['name'],
+                    'title'      => $ingredientData['name'],
                 ]);
 
                 // Save allergens for this ingredient
-                if (!empty($ingredientData['allergens'])) {
+                if (! empty($ingredientData['allergens'])) {
                     foreach ($ingredientData['allergens'] as $allergenName) {
                         Allergen::create([
                             'ingredient_id' => $ingredient->id,
-                            'name' => $allergenName,
+                            'name'          => $allergenName,
                         ]);
                     }
                 }
             }
 
             Log::info('Ingredient analysis completed', [
-                'product_id' => $product->id,
+                'product_id'        => $product->id,
                 'ingredients_count' => count($analysis['ingredients']),
             ]);
-
         } catch (\Exception $e) {
             Log::error('Failed to process ingredient image', [
                 'product_id' => $product->id,
-                'error' => $e->getMessage(),
+                'error'      => $e->getMessage(),
             ]);
-            
+
             // Re-throw to be handled by the calling method
             throw $e;
         }
     }
-} 
+}

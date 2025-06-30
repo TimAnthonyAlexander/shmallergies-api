@@ -1,5 +1,6 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
 
 parameters:
     paths:
@@ -12,23 +13,18 @@ parameters:
     # Rule level (0-9, where 9 is the strictest)
     level: 6
 
-    ignoreErrors:
-        # Ignore errors in migrations for created_at/updated_at
-        - '#Call to an undefined method Illuminate\\Database\\Schema\\Builder::#'
-        - '#Property .* does not exist#'
-
     excludePaths:
         - */vendor/*
         - */storage/*
         - */bootstrap/cache/*
         - */node_modules/*
-    
+
     tmpDir: storage/phpstan
-    
+
     # Laravel specific configuration
     noUnnecessaryCollectionCall: true
     noUnnecessaryCollectionCallOnly: []
     noUnnecessaryCollectionCallExcept: []
-    
+
     # Blade template support
-    checkOctaneCompatibility: false 
+    checkOctaneCompatibility: false

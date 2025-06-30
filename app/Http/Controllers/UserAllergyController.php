@@ -2,17 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\UserAllergy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class UserAllergyController extends Controller
 {
     /**
-     * Get user's allergies
-     * 
+     * Get user's allergies.
+     *
      * @group User Allergies
+     *
      * @authenticated
+     *
      * @response 200 {
      *   "message": "User allergies retrieved successfully",
      *   "allergies": [
@@ -25,26 +26,26 @@ class UserAllergyController extends Controller
      *     }
      *   ]
      * }
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
         $allergies = $request->user()->allergies;
 
         return response()->json([
-            'message' => 'User allergies retrieved successfully',
+            'message'   => 'User allergies retrieved successfully',
             'allergies' => $allergies,
         ]);
     }
 
     /**
-     * Add a new allergy for the user
-     * 
+     * Add a new allergy for the user.
+     *
      * @group User Allergies
+     *
      * @authenticated
+     *
      * @bodyParam allergy_text string required The allergy description (max 500 characters). Example: Peanuts and tree nuts
+     *
      * @response 201 {
      *   "message": "Allergy added successfully",
      *   "allergy": {
@@ -55,9 +56,6 @@ class UserAllergyController extends Controller
      *     "updated_at": "2024-01-01T00:00:00.000000Z"
      *   }
      * }
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -76,12 +74,16 @@ class UserAllergyController extends Controller
     }
 
     /**
-     * Update an existing allergy
-     * 
+     * Update an existing allergy.
+     *
      * @group User Allergies
+     *
      * @authenticated
+     *
      * @urlParam id integer required The allergy ID. Example: 1
+     *
      * @bodyParam allergy_text string required The updated allergy description (max 500 characters). Example: Severe peanut allergy
+     *
      * @response 200 {
      *   "message": "Allergy updated successfully",
      *   "allergy": {
@@ -95,10 +97,6 @@ class UserAllergyController extends Controller
      * @response 404 {
      *   "message": "No query results for model [App\\Models\\UserAllergy] 1"
      * }
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function update(Request $request, int $id): JsonResponse
     {
@@ -118,21 +116,20 @@ class UserAllergyController extends Controller
     }
 
     /**
-     * Delete an allergy
-     * 
+     * Delete an allergy.
+     *
      * @group User Allergies
+     *
      * @authenticated
+     *
      * @urlParam id integer required The allergy ID. Example: 1
+     *
      * @response 200 {
      *   "message": "Allergy deleted successfully"
      * }
      * @response 404 {
      *   "message": "No query results for model [App\\Models\\UserAllergy] 1"
      * }
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
@@ -143,4 +140,4 @@ class UserAllergyController extends Controller
             'message' => 'Allergy deleted successfully',
         ]);
     }
-} 
+}

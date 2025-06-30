@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use Exception;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 class GPTService
 {
@@ -16,47 +16,49 @@ class GPTService
     public function __construct()
     {
         $this->apiKey = config('services.openai.api_key');
-        
-        if (!$this->apiKey) {
+
+        if (! $this->apiKey) {
             throw new Exception('OpenAI API key is not configured. Please set OPENAI_API_KEY in your environment.');
         }
     }
 
     /**
-     * Send a chat completion request to OpenAI
+     * Send a chat completion request to OpenAI.
      */
     public function chat(array $messages, int $maxTokens = 1000): array
     {
         $payload = [
-            'model' => $this->model,
-            'messages' => array_map(fn($msg) => $msg instanceof GPTMessage ? $msg->toArray() : $msg, $messages),
-            'max_tokens' => $maxTokens,
+            'model'       => $this->model,
+            'messages'    => array_map(fn ($msg) => $msg instanceof GPTMessage ? $msg->toArray() : $msg, $messages),
+            'max_tokens'  => $maxTokens,
             'temperature' => 0.1, // Low temperature for more consistent results
         ];
 
         try {
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type' => 'application/json',
+                'Content-Type'  => 'application/json',
             ])->timeout(60)->post($this->baseUrl . '/chat/completions', $payload);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('OpenAI API Error', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body'   => $response->body(),
                 ]);
+
                 throw new Exception('OpenAI API request failed: ' . $response->body());
             }
 
             return $response->json();
         } catch (Exception $e) {
             Log::error('GPT Service Error', ['error' => $e->getMessage()]);
+
             throw $e;
         }
     }
 
     /**
-     * Analyze ingredient image and extract ingredients with allergens
+     * Analyze ingredient image and extract ingredients with allergens.
      */
     public function analyzeIngredientImage(string $imageBase64, string $mimeType = 'image/jpeg'): array
     {
@@ -79,15 +81,15 @@ Be thorough but conservative - only list allergens that are clearly present or l
 Return ONLY the JSON object, no additional text or explanation.";
 
         $message = GPTMessage::textWithImage('user', $prompt, $imageBase64, $mimeType);
-        
+
         $response = $this->chat([$message], 1500);
-        
+
         $content = $response['choices'][0]['message']['content'] ?? '';
-        
+
         // Try to parse JSON from the response
         $jsonData = $this->extractJsonFromResponse($content);
-        
-        if (!$jsonData || !isset($jsonData['ingredients'])) {
+
+        if (! $jsonData || ! isset($jsonData['ingredients'])) {
             throw new Exception('Failed to parse ingredients from GPT response');
         }
 
@@ -95,7 +97,7 @@ Return ONLY the JSON object, no additional text or explanation.";
     }
 
     /**
-     * Extract JSON from GPT response, handling cases where there might be extra text
+     * Extract JSON from GPT response, handling cases where there might be extra text.
      */
     private function extractJsonFromResponse(string $response): ?array
     {
@@ -116,15 +118,17 @@ Return ONLY the JSON object, no additional text or explanation.";
 
         // Log the response for debugging
         Log::warning('Failed to parse JSON from GPT response', ['response' => $response]);
+
         return null;
     }
 
     /**
-     * Set the model to use (for testing or different use cases)
+     * Set the model to use (for testing or different use cases).
      */
     public function setModel(string $model): self
     {
         $this->model = $model;
+
         return $this;
     }
-} 
+}

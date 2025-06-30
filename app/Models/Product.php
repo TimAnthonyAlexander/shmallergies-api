@@ -28,4 +28,4 @@ class Product extends Model
     {
         return $this->hasMany(Ingredient::class);
     }
-} 
+}
