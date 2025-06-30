@@ -17,11 +17,14 @@
     "require-dev": {
         "fakerphp/faker": "^1.23",
         "knuckleswtf/scribe": "^5.2",
+        "larastan/larastan": "^3.5",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.13",
         "laravel/sail": "^1.41",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
+        "php-parallel-lint/php-parallel-lint": "^1.4",
+        "phpmd/phpmd": "^2.15",
         "phpunit/phpunit": "^11.5.3"
     },
     "autoload": {
@@ -60,6 +63,41 @@
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"
+        ],
+        "lint": [
+            "vendor/bin/parallel-lint --exclude vendor --exclude storage --exclude bootstrap/cache ."
+        ],
+        "pint": [
+            "vendor/bin/pint"
+        ],
+        "pint-check": [
+            "vendor/bin/pint --test"
+        ],
+        "phpstan": [
+            "vendor/bin/phpstan analyse --memory-limit=2G"
+        ],
+        "phpmd": [
+            "vendor/bin/phpmd app,config,database,routes,tests text phpmd.xml"
+        ],
+        "quality": [
+            "@lint",
+            "@pint-check",
+            "@phpstan",
+            "@phpmd",
+            "@test"
+        ],
+        "quality-fix": [
+            "@lint",
+            "@pint",
+            "@phpstan",
+            "@phpmd",
+            "@test"
+        ],
+        "pre-commit": [
+            "@quality"
+        ],
+        "install-hooks": [
+            "@php -r \"copy('scripts/pre-commit', '.git/hooks/pre-commit'); chmod('.git/hooks/pre-commit', 0755); echo 'Git hooks installed successfully.\\n';\""
         ]
     },
     "extra": {
