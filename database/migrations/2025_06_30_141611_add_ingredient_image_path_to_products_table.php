@@ -11,11 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('products', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('upc_code')->unique();
-            $table->timestamps();
+        Schema::table('products', function (Blueprint $table) {
+            $table->string('ingredient_image_path')->nullable()->after('upc_code');
         });
     }
 
@@ -24,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('products');
+        Schema::table('products', function (Blueprint $table) {
+            $table->dropColumn('ingredient_image_path');
+        });
     }
 };
