@@ -3,9 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\Ingredient;
+use App\Models\Allergen;
+use App\Services\GPTService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
@@ -47,26 +52,52 @@ class ProductController extends Controller
             'ingredient_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB max
         ]);
 
-        // Handle image upload
-        $imagePath = null;
-        if ($request->hasFile('ingredient_image')) {
-            $imagePath = $request->file('ingredient_image')->store('ingredient-images', 'public');
+        DB::beginTransaction();
+        
+        try {
+            // Handle image upload
+            $imagePath = null;
+            if ($request->hasFile('ingredient_image')) {
+                $imagePath = $request->file('ingredient_image')->store('ingredient-images', 'public');
+            }
+
+            $product = Product::create([
+                'name' => $request->name,
+                'upc_code' => $request->upc_code,
+                'ingredient_image_path' => $imagePath,
+            ]);
+
+            // Process the ingredient image with GPT
+            if ($imagePath && $request->hasFile('ingredient_image')) {
+                $this->processIngredientImage($product, $request->file('ingredient_image'));
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Product created successfully',
+                'product' => $product->load('ingredients.allergens'),
+                'ingredient_image_url' => $imagePath ? Storage::url($imagePath) : null,
+            ], 201);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            // Clean up uploaded image if processing failed
+            if (isset($imagePath) && $imagePath) {
+                Storage::disk('public')->delete($imagePath);
+            }
+            
+            Log::error('Product creation failed', [
+                'error' => $e->getMessage(),
+                'product_name' => $request->name,
+                'upc_code' => $request->upc_code
+            ]);
+
+            return response()->json([
+                'message' => 'Product creation failed: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $product = Product::create([
-            'name' => $request->name,
-            'upc_code' => $request->upc_code,
-            'ingredient_image_path' => $imagePath,
-        ]);
-
-        // For now, we're not processing the image to extract ingredients
-        // This will be implemented later with AI processing
-
-        return response()->json([
-            'message' => 'Product created successfully',
-            'product' => $product->load('ingredients.allergens'),
-            'ingredient_image_url' => $imagePath ? Storage::url($imagePath) : null,
-        ], 201);
     }
 
     /**
@@ -388,5 +419,56 @@ class ProductController extends Controller
             'total' => $products->count(),
             'searched_allergens' => $allergensList,
         ]);
+    }
+
+    /**
+     * Process ingredient image using GPT to extract ingredients and allergens
+     */
+    private function processIngredientImage(Product $product, $imageFile): void
+    {
+        try {
+            // Convert image to base64
+            $imageContent = file_get_contents($imageFile->getRealPath());
+            $imageBase64 = base64_encode($imageContent);
+            $mimeType = $imageFile->getClientMimeType();
+
+            // Initialize GPT service
+            $gptService = new GPTService();
+            
+            // Analyze the ingredient image
+            $analysis = $gptService->analyzeIngredientImage($imageBase64, $mimeType);
+            
+            // Save ingredients and allergens to database
+            foreach ($analysis['ingredients'] as $ingredientData) {
+                $ingredient = Ingredient::create([
+                    'product_id' => $product->id,
+                    'title' => $ingredientData['name'],
+                ]);
+
+                // Save allergens for this ingredient
+                if (!empty($ingredientData['allergens'])) {
+                    foreach ($ingredientData['allergens'] as $allergenName) {
+                        Allergen::create([
+                            'ingredient_id' => $ingredient->id,
+                            'name' => $allergenName,
+                        ]);
+                    }
+                }
+            }
+
+            Log::info('Ingredient analysis completed', [
+                'product_id' => $product->id,
+                'ingredients_count' => count($analysis['ingredients']),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to process ingredient image', [
+                'product_id' => $product->id,
+                'error' => $e->getMessage(),
+            ]);
+            
+            // Re-throw to be handled by the calling method
+            throw $e;
+        }
     }
 } 

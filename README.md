@@ -7,6 +7,107 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+# Shmallergies API
+
+A Laravel-based API for managing products, ingredients, and allergens with AI-powered ingredient analysis.
+
+## Features
+
+- Product management with UPC code support
+- Automatic ingredient and allergen extraction from uploaded images using GPT-4o-mini
+- User allergy tracking and product safety checking
+- RESTful API with comprehensive documentation
+
+## Setup
+
+### Prerequisites
+
+- PHP 8.2+
+- Composer
+- SQLite (default) or MySQL/PostgreSQL
+
+### Installation
+
+1. Clone the repository
+```bash
+git clone <repository-url>
+cd shmallergies/api
+```
+
+2. Install dependencies
+```bash
+composer install
+```
+
+3. Set up environment variables
+```bash
+cp .env.example .env
+```
+
+4. Configure your environment variables in `.env`:
+```bash
+# Database (SQLite is used by default)
+DB_CONNECTION=sqlite
+
+# OpenAI API Key (required for ingredient analysis)
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+5. Generate application key
+```bash
+php artisan key:generate
+```
+
+6. Run migrations
+```bash
+php artisan migrate
+```
+
+7. Create storage link
+```bash
+php artisan storage:link
+```
+
+8. Start the development server
+```bash
+php artisan serve
+```
+
+## OpenAI Integration
+
+This application uses GPT-4o-mini to analyze ingredient images and automatically extract:
+- Individual ingredients from ingredient lists
+- Potential allergens for each ingredient
+
+### Getting an OpenAI API Key
+
+1. Visit [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Create an account or log in
+3. Generate a new API key
+4. Add it to your `.env` file as `OPENAI_API_KEY=your_key_here`
+
+### How It Works
+
+When a product is created with an ingredient image:
+1. The image is uploaded and stored
+2. The image is converted to base64 and sent to GPT-4o-mini
+3. GPT analyzes the image and returns structured JSON with ingredients and allergens
+4. The extracted data is saved to the database
+
+## API Documentation
+
+The API is documented using Scribe. After setup, visit `/docs` to view the interactive documentation.
+
+## Key Endpoints
+
+- `POST /api/products` - Create a product with ingredient image analysis
+- `GET /api/products/search` - Search products by name or UPC
+- `GET /api/products/{id}` - Get product details with ingredients and allergens
+- `GET /api/products/upc/{upcCode}` - Get product by UPC code
+- `GET /api/products/allergens` - Find products containing specific allergens
+
+---
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
