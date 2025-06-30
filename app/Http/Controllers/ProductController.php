@@ -338,7 +338,20 @@ class ProductController extends Controller
 
         return response()->json([
             'message' => 'Products retrieved successfully',
-            'data' => $products->items(),
+            'data' => $products->getCollection()->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'upc_code' => $product->upc_code,
+                    'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
+                    'ingredients_count' => $product->ingredients->count(),
+                    'allergens_count' => $product->ingredients->sum(function ($ingredient) {
+                        return $ingredient->allergens->count();
+                    }),
+                    'created_at' => $product->created_at,
+                    'updated_at' => $product->updated_at,
+                ];
+            }),
             'current_page' => $products->currentPage(),
             'last_page' => $products->lastPage(),
             'per_page' => $products->perPage(),
