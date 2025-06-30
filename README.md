@@ -9,104 +9,281 @@
 
 # Shmallergies API
 
-A Laravel-based API for managing products, ingredients, and allergens with AI-powered ingredient analysis.
+A Laravel-based REST API for allergen tracking and product safety management. This API powers the Shmallergies application, helping users identify allergens in food products through AI-powered ingredient analysis and community-driven data.
 
 ## Features
 
-- Product management with UPC code support
-- Automatic ingredient and allergen extraction from uploaded images using GPT-4o-mini
-- User allergy tracking and product safety checking
-- RESTful API with comprehensive documentation
+- **User Authentication** with email verification using Laravel Sanctum
+- **Product Management** with image upload and AI-powered ingredient analysis
+- **Allergen Detection** using GPT service for ingredient photo analysis
+- **Personal Allergy Profiles** for customized safety checks
+- **Product Safety Verification** against user allergies
+- **Comprehensive Search** by product name, UPC code, or allergens
+- **Community Database** - publicly accessible product information
 
-## Setup
+## Technology Stack
+
+- **Framework**: Laravel 11.x
+- **Authentication**: Laravel Sanctum (API tokens)
+- **Database**: MySQL/PostgreSQL
+- **AI Service**: OpenAI GPT for ingredient analysis
+- **File Storage**: Laravel Storage (configurable)
+- **Email**: Laravel Mail with verification
+- **API Documentation**: Scribe
+
+## Database Schema
+
+### Core Models
+
+- **User**: Authentication and profile management
+- **Product**: Food products with UPC codes and ingredient images
+- **Ingredient**: Individual ingredients extracted from products
+- **Allergen**: Allergens associated with ingredients
+- **UserAllergy**: User's personal allergy profile
+
+### Relationships
+
+```
+User (1) -> (n) UserAllergy
+Product (1) -> (n) Ingredient
+Ingredient (1) -> (n) Allergen
+```
+
+## API Endpoints
+
+### Authentication
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/auth/signup` | Register new user | No |
+| POST | `/api/auth/login` | User login | No |
+| POST | `/api/auth/logout` | User logout | Yes |
+| GET | `/api/auth/email/verify/{id}/{hash}` | Verify email address | No |
+| POST | `/api/auth/email/resend` | Resend verification email | No |
+
+### User Profile
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/user` | Get user profile with allergies | Yes |
+| GET | `/api/user/product-safety/{id}` | Check product safety for user | Yes |
+
+### Products
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/products` | Get paginated products | No |
+| GET | `/api/products/search` | Search products by name/UPC | No |
+| GET | `/api/products/allergens` | Get products with specific allergens | No |
+| GET | `/api/products/{id}` | Get product details | No |
+| GET | `/api/products/upc/{upcCode}` | Get product by UPC code | No |
+| POST | `/api/products` | Create new product with image | Yes |
+
+### User Allergies
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/user/allergies` | Get user's allergies | Yes |
+| POST | `/api/user/allergies` | Add new allergy | Yes |
+| PUT | `/api/user/allergies/{id}` | Update allergy | Yes |
+| DELETE | `/api/user/allergies/{id}` | Delete allergy | Yes |
+
+### Health Check
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/ping` | API health check | No |
+
+## Installation & Setup
 
 ### Prerequisites
 
 - PHP 8.2+
 - Composer
-- SQLite (default) or MySQL/PostgreSQL
+- MySQL/PostgreSQL
+- OpenAI API key (for ingredient analysis)
 
-### Installation
+### Installation Steps
 
-1. Clone the repository
-```bash
-git clone <repository-url>
-cd shmallergies/api
+1. **Clone and setup**
+   ```bash
+   cd api
+   composer install
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+2. **Database Configuration**
+   ```bash
+   # Configure database in .env
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=shmallergies
+   DB_USERNAME=your_username
+   DB_PASSWORD=your_password
+   
+   # Run migrations
+   php artisan migrate
+   php artisan db:seed
+   ```
+
+3. **Storage Setup**
+   ```bash
+   php artisan storage:link
+   ```
+
+4. **Environment Configuration**
+   ```bash
+   # Add to .env
+   OPENAI_API_KEY=your_openai_api_key
+   
+   # Email configuration for verification
+   MAIL_MAILER=smtp
+   MAIL_HOST=your_smtp_host
+   MAIL_PORT=587
+   MAIL_USERNAME=your_email
+   MAIL_PASSWORD=your_password
+   MAIL_FROM_ADDRESS=noreply@yourdomain.com
+   ```
+
+5. **Start Development Server**
+   ```bash
+   php artisan serve
+   ```
+
+## AI-Powered Ingredient Analysis
+
+The API uses OpenAI's GPT service to analyze ingredient photos:
+
+1. **Upload Process**: Users upload products with ingredient list photos
+2. **AI Analysis**: GPT analyzes the image to extract ingredients and identify allergens
+3. **Data Storage**: Parsed ingredients and allergens are stored in the database
+4. **Safety Checks**: System cross-references with user allergy profiles
+
+### GPT Service Integration
+
+```php
+// Example usage in ProductController
+$gptService = new GPTService();
+$analysis = $gptService->analyzeIngredientImage($imageBase64, $mimeType);
+
+// Returns structured data:
+[
+    'ingredients' => [
+        [
+            'name' => 'High Fructose Corn Syrup',
+            'allergens' => ['corn']
+        ],
+        // ...
+    ]
+]
 ```
 
-2. Install dependencies
-```bash
-composer install
-```
+## Authentication & Security
 
-3. Set up environment variables
-```bash
-cp .env.example .env
-```
+- **JWT Tokens**: Laravel Sanctum for API authentication
+- **Email Verification**: Required for account activation
+- **Rate Limiting**: Applied to sensitive endpoints
+- **Input Validation**: Comprehensive request validation
+- **CORS**: Configured for frontend integration
 
-4. Configure your environment variables in `.env`:
-```bash
-# Database (SQLite is used by default)
-DB_CONNECTION=sqlite
+## File Storage
 
-# OpenAI API Key (required for ingredient analysis)
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-5. Generate application key
-```bash
-php artisan key:generate
-```
-
-6. Run migrations
-```bash
-php artisan migrate
-```
-
-7. Create storage link
-```bash
-php artisan storage:link
-```
-
-8. Start the development server
-```bash
-php artisan serve
-```
-
-## OpenAI Integration
-
-This application uses GPT-4o-mini to analyze ingredient images and automatically extract:
-- Individual ingredients from ingredient lists
-- Potential allergens for each ingredient
-
-### Getting an OpenAI API Key
-
-1. Visit [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Create an account or log in
-3. Generate a new API key
-4. Add it to your `.env` file as `OPENAI_API_KEY=your_key_here`
-
-### How It Works
-
-When a product is created with an ingredient image:
-1. The image is uploaded and stored
-2. The image is converted to base64 and sent to GPT-4o-mini
-3. GPT analyzes the image and returns structured JSON with ingredients and allergens
-4. The extracted data is saved to the database
+- **Ingredient Images**: Stored in `storage/app/public/ingredient-images/`
+- **Public Access**: Available via `/storage/` URLs
+- **Validation**: Max 2MB, JPEG/PNG/JPG/GIF formats
+- **Cleanup**: Automatic cleanup on failed uploads
 
 ## API Documentation
 
-The API is documented using Scribe. After setup, visit `/docs` to view the interactive documentation.
+The API includes comprehensive documentation generated with Scribe:
 
-## Key Endpoints
+- **Interactive Docs**: Available at `/docs` when running
+- **Endpoint Examples**: All endpoints include request/response examples
+- **Authentication**: Documented authentication requirements
+- **Error Handling**: Standard HTTP status codes and error messages
 
-- `POST /api/products` - Create a product with ingredient image analysis
-- `GET /api/products/search` - Search products by name or UPC
-- `GET /api/products/{id}` - Get product details with ingredients and allergens
-- `GET /api/products/upc/{upcCode}` - Get product by UPC code
-- `GET /api/products/allergens` - Find products containing specific allergens
+## Error Handling
 
----
+The API uses standard HTTP status codes:
+
+- **200**: Success
+- **201**: Created
+- **400**: Bad Request
+- **401**: Unauthorized
+- **403**: Forbidden (email not verified)
+- **404**: Not Found
+- **422**: Validation Error
+- **500**: Server Error
+
+Error responses include structured JSON:
+
+```json
+{
+    "message": "Error description",
+    "errors": {
+        "field": ["Validation error details"]
+    }
+}
+```
+
+## Testing
+
+Run the test suite:
+
+```bash
+php artisan test
+```
+
+## Console Commands
+
+### Import Products
+```bash
+php artisan import:products {file}
+```
+
+### Test GPT Service
+```bash
+php artisan test:gpt-service
+```
+
+## Development & Debugging
+
+### Debug Routes
+```bash
+# Check URL configuration
+GET /api/debug/url-config
+
+# Test email verification (development only)
+GET /api/debug/send-verification/{userId}
+```
+
+### Logging
+- Application logs: `storage/logs/laravel.log`
+- GPT service interactions are logged for debugging
+- Product creation failures are logged with context
+
+## Production Deployment
+
+1. **Environment**: Set `APP_ENV=production`
+2. **Debug**: Set `APP_DEBUG=false`
+3. **Remove Debug Routes**: Comment out debug routes in production
+4. **Queue Configuration**: Configure queues for email processing
+5. **Cache**: Enable Redis/Memcached for better performance
+6. **HTTPS**: Ensure all endpoints use HTTPS in production
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Follow Laravel coding standards
+4. Add tests for new functionality
+5. Submit a pull request
+
+## License
+
+This project is open source and available under the MIT License.
 
 ## About Laravel
 
@@ -145,10 +322,6 @@ We would like to extend our thanks to the following sponsors for funding Laravel
 - **[Redberry](https://redberry.international/laravel-development)**
 - **[Active Logic](https://activelogic.com)**
 
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
 ## Code of Conduct
 
 In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
@@ -156,7 +329,3 @@ In order to ensure that the Laravel community is welcoming to all, please review
 ## Security Vulnerabilities
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
