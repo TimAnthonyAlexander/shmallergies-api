@@ -1,0 +1,146 @@
+[
+    {
+        "name": "Nutella Hazelnut Spread with Cocoa (13 oz Jar)",
+        "upc": "009800895007",
+        "ingredients": [
+            {
+                "name": "Sugar",
+                "allergens": []
+            },
+            {
+                "name": "Palm oil",
+                "allergens": []
+            },
+            {
+                "name": "Hazelnuts",
+                "allergens": [
+                    "tree nuts"
+                ]
+            },
+            {
+                "name": "Cocoa",
+                "allergens": []
+            },
+            {
+                "name": "Skim milk",
+                "allergens": [
+                    "milk"
+                ]
+            },
+            {
+                "name": "Whey (milk)",
+                "allergens": [
+                    "milk"
+                ]
+            },
+            {
+                "name": "Lecithin (soy) as emulsifier",
+                "allergens": [
+                    "soy"
+                ]
+            },
+            {
+                "name": "Vanillin (artificial flavor)",
+                "allergens": []
+            }
+        ],
+        "allergens": [
+            "tree nuts",
+            "milk",
+            "soy"
+        ]
+    },
+    {
+        "name": "Hershey's Milk Chocolate Bar (1.55 oz)",
+        "upc": "034000002405",
+        "ingredients": [
+            {
+                "name": "Sugar",
+                "allergens": []
+            },
+            {
+                "name": "Chocolate",
+                "allergens": []
+            },
+            {
+                "name": "Milk",
+                "allergens": [
+                    "milk"
+                ]
+            },
+            {
+                "name": "Cocoa butter",
+                "allergens": []
+            },
+            {
+                "name": "Skim milk",
+                "allergens": [
+                    "milk"
+                ]
+            },
+            {
+                "name": "Milk fat",
+                "allergens": [
+                    "milk"
+                ]
+            },
+            {
+                "name": "Lecithin (soy)",
+                "allergens": [
+                    "soy"
+                ]
+            },
+            {
+                "name": "PGPR (emulsifier)",
+                "allergens": []
+            },
+            {
+                "name": "Natural flavor",
+                "allergens": []
+            }
+        ],
+        "allergens": [
+            "milk",
+            "soy"
+        ]
+    },
+    {
+        "name": "Breyers Natural Vanilla Ice Cream (48 oz)",
+        "upc": "077567254238",
+        "ingredients": [
+            {
+                "name": "Milk",
+                "allergens": [
+                    "milk"
+                ]
+            },
+            {
+                "name": "Cream",
+                "allergens": [
+                    "milk"
+                ]
+            },
+            {
+                "name": "Sugar",
+                "allergens": []
+            },
+            {
+                "name": "Skim milk",
+                "allergens": [
+                    "milk"
+                ]
+            },
+            {
+                "name": "Tara gum",
+                "allergens": []
+            },
+            {
+                "name": "Natural flavor",
+                "allergens": []
+            }
+        ],
+        "allergens": [
+            "milk"
+        ]
+    }
+]

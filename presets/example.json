@@ -1,0 +1,108 @@
+[
+    {
+        "name": "OREO Original Chocolate Sandwich Cookies (Family Size)",
+        "upc": "044000012024",
+        "ingredients": [
+            {
+                "name": "Sugar",
+                "allergens": []
+            },
+            {
+                "name": "Unbleached enriched flour (wheat flour, niacin, reduced iron, thiamine mononitrate {vitamin B1}, riboflavin {vitamin B2}, folic acid)",
+                "allergens": [
+                    "wheat"
+                ]
+            },
+            {
+                "name": "Palm oil",
+                "allergens": []
+            },
+            {
+                "name": "Cocoa (processed with alkali)",
+                "allergens": []
+            },
+            {
+                "name": "High fructose corn syrup",
+                "allergens": []
+            },
+            {
+                "name": "Leavening (baking soda and/or calcium phosphate)",
+                "allergens": []
+            },
+            {
+                "name": "Salt",
+                "allergens": []
+            },
+            {
+                "name": "Soy lecithin",
+                "allergens": [
+                    "soy"
+                ]
+            },
+            {
+                "name": "Chocolate",
+                "allergens": [
+                    "soy"
+                ]
+            },
+            {
+                "name": "Artificial flavor",
+                "allergens": []
+            }
+        ],
+        "allergens": [
+            "wheat",
+            "soy"
+        ]
+    },
+    {
+        "name": "Natural Creamy Peanut Butter (Smucker’s)",
+        "upc": "5100027035",
+        "ingredients": [
+            {
+                "name": "Peanuts",
+                "allergens": [
+                    "peanut"
+                ]
+            },
+            {
+                "name": "Salt (≤ 1%)",
+                "allergens": []
+            }
+        ],
+        "allergens": [
+            "peanut"
+        ]
+    },
+    {
+        "name": "Jif Natural Creamy Peanut Butter",
+        "upc": "071662011300",
+        "ingredients": [
+            {
+                "name": "Peanuts",
+                "allergens": [
+                    "peanut"
+                ]
+            },
+            {
+                "name": "Sugar",
+                "allergens": []
+            },
+            {
+                "name": "Palm Oil",
+                "allergens": []
+            },
+            {
+                "name": "Salt (≤ 2%)",
+                "allergens": []
+            },
+            {
+                "name": "Molasses (≤ 2%)",
+                "allergens": []
+            }
+        ],
+        "allergens": [
+            "peanut"
+        ]
+    }
+]

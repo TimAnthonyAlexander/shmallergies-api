@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,13 +21,13 @@ class AuthController extends Controller
      * @bodyParam password string required The user's password (min 8 characters). Example: password123
      * @bodyParam password_confirmation string required Password confirmation. Example: password123
      * @response 201 {
-     *   "message": "User created successfully",
+     *   "message": "User created successfully. Please check your email to verify your account.",
      *   "user": {
      *     "id": 1,
      *     "name": "John Doe",
-     *     "email": "john@example.com"
-     *   },
-     *   "token": "1|abc123token"
+     *     "email": "john@example.com",
+     *     "email_verified_at": null
+     *   }
      * }
      *
      * @param Request $request
@@ -46,12 +47,12 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Send email verification notification
+        event(new Registered($user));
 
         return response()->json([
-            'message' => 'User created successfully',
-            'user' => $user,
-            'token' => $token,
+            'message' => 'User created successfully. Please check your email to verify your account.',
+            'user' => $user->only(['id', 'name', 'email', 'email_verified_at']),
         ], 201);
     }
 
@@ -76,6 +77,12 @@ class AuthController extends Controller
      *     "email": ["The provided credentials are incorrect."]
      *   }
      * }
+     * @response 403 {
+     *   "message": "Your email address is not verified.",
+     *   "errors": {
+     *     "email": ["Your email address is not verified."]
+     *   }
+     * }
      *
      * @param Request $request
      * @return JsonResponse
@@ -94,6 +101,17 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->first();
+
+        // Check if email is verified
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Your email address is not verified.',
+                'errors' => [
+                    'email' => ['Your email address is not verified.']
+                ]
+            ], 403);
+        }
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
@@ -122,5 +140,84 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Logged out successfully',
         ]);
+    }
+
+    /**
+     * Verify email address
+     * 
+     * @group Authentication
+     * @urlParam id integer required The user ID. Example: 1
+     * @urlParam hash string required The email verification hash.
+     * @queryParam expires integer required The expiration timestamp.
+     * @queryParam signature string required The signature for verification.
+     * @response 200 {
+     *   "message": "Email verified successfully."
+     * }
+     * @response 400 {
+     *   "message": "Invalid verification link."
+     * }
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function verifyEmail(Request $request): JsonResponse
+    {
+        $user = User::find($request->route('id'));
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        // Check if the hash matches
+        if (!hash_equals(sha1($user->getEmailForVerification()), (string) $request->route('hash'))) {
+            return response()->json(['message' => 'Invalid verification link.'], 400);
+        }
+
+        if (!$request->hasValidSignature()) {
+            return response()->json(['message' => 'Invalid verification link.'], 400);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email already verified.'], 200);
+        }
+
+        $user->markEmailAsVerified();
+
+        return response()->json(['message' => 'Email verified successfully.'], 200);
+    }
+
+    /**
+     * Resend email verification
+     * 
+     * @group Authentication
+     * @bodyParam email string required The user's email address. Example: john@example.com
+     * @response 200 {
+     *   "message": "Verification email sent."
+     * }
+     * @response 400 {
+     *   "message": "Email is already verified."
+     * }
+     * @response 404 {
+     *   "message": "User not found."
+     * }
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function resendVerificationEmail(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email is already verified.'], 400);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return response()->json(['message' => 'Verification email sent.'], 200);
     }
 } 
