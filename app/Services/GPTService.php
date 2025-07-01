@@ -123,6 +123,60 @@ Return ONLY the JSON object, no additional text or explanation.";
     }
 
     /**
+     * Analyze German ingredient text and extract ingredients with allergens.
+     */
+    public function analyzeGermanIngredients(string $ingredientsText): array
+    {
+        $prompt = "Analysiere diese deutsche Zutatenliste und extrahiere alle Zutaten mit ihren möglichen Allergenen.
+
+Zutatenliste: \"{$ingredientsText}\"
+
+Bitte antworte mit einem JSON-Objekt in genau diesem Format:
+{
+  \"ingredients\": [
+    {
+      \"name\": \"Zutat-Name\",
+      \"allergens\": [\"allergen1\", \"allergen2\"]
+    }
+  ]
+}
+
+Konzentriere dich auf häufige Allergene wie: Erdnüsse, Nüsse, Milch/Milchprodukte, Eier, Weizen/Gluten, Soja, Fisch, Schalentiere, Sesam, Mais, Sulfite.
+
+Sei gründlich aber konservativ - liste nur Allergene auf, die eindeutig vorhanden oder basierend auf dem Zutatennamen wahrscheinlich sind. Wenn eine Zutat keine offensichtlichen Allergene enthält, verwende ein leeres Array.
+
+Deutsche Allergen-Bezeichnungen verwenden:
+- \"weizen\" für Wheat/Gluten
+- \"milch\" für Dairy/Milk  
+- \"eier\" für Eggs
+- \"erdnüsse\" für Peanuts
+- \"nüsse\" für Tree nuts
+- \"soja\" für Soy
+- \"fisch\" für Fish
+- \"schalentiere\" für Shellfish
+- \"sesam\" für Sesame
+- \"mais\" für Corn
+- \"sulfite\" für Sulfites
+
+Gib NUR das JSON-Objekt zurück, ohne zusätzlichen Text oder Erklärungen.";
+
+        $message = GPTMessage::text('user', $prompt);
+
+        $response = $this->chat([$message], 1500);
+
+        $content = $response['choices'][0]['message']['content'] ?? '';
+
+        // Try to parse JSON from the response
+        $jsonData = $this->extractJsonFromResponse($content);
+
+        if (! $jsonData || ! isset($jsonData['ingredients'])) {
+            throw new Exception('Failed to parse ingredients from GPT response for German text');
+        }
+
+        return $jsonData;
+    }
+
+    /**
      * Set the model to use (for testing or different use cases).
      */
     public function setModel(string $model): self
