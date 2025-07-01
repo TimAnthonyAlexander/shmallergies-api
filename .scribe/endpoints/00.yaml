@@ -10,7 +10,7 @@ endpoints:
       groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: 'Return a ping response'
+      title: 'Return a ping response.'
       description: ''
       authenticated: false
       custom: []
@@ -43,7 +43,7 @@ endpoints:
   -
     httpMethods:
       - GET
-    uri: api/user
+    uri: api/debug/url-config
     metadata:
       groupName: Endpoints
       groupDescription: ''
@@ -65,11 +65,58 @@ endpoints:
     fileParameters: []
     responses:
       -
-        status: 500
-        content: |-
-          {
-              "message": "Server Error"
-          }
+        status: 200
+        content: '{"app_url":"http:\/\/shmallergies.test","app_name":"Shmallergies","sample_verification_url":"http:\/\/shmallergies.test\/api\/auth\/email\/verify\/1\/sample-hash","current_domain":"shmallergies.test","current_scheme":"http","full_current_url":"http:\/\/shmallergies.test"}'
+        headers:
+          cache-control: 'no-cache, private'
+          content-type: application/json
+          access-control-allow-origin: '*'
+        description: null
+        custom: []
+    responseFields: []
+    auth: []
+    controller: null
+    method: null
+    route: null
+    custom: []
+  -
+    httpMethods:
+      - GET
+    uri: 'api/debug/send-verification/{userId}'
+    metadata:
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: ''
+      description: ''
+      authenticated: false
+      custom: []
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      userId:
+        name: userId
+        description: ''
+        required: true
+        example: architecto
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        custom: []
+    cleanUrlParameters:
+      userId: architecto
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses:
+      -
+        status: 404
+        content: '{"error":"User not found"}'
         headers:
           cache-control: 'no-cache, private'
           content-type: application/json
