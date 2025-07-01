@@ -74,6 +74,9 @@ class DemoGermanScraping extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function getDemoProducts(): array
     {
         return [
@@ -115,6 +118,9 @@ class DemoGermanScraping extends Command
         ];
     }
 
+    /**
+     * @param array<string, mixed> $productData
+     */
     private function processDemoProduct(array $productData): string
     {
         // Check if product exists
@@ -195,6 +201,7 @@ class DemoGermanScraping extends Command
         
         foreach ($demoProducts as $product) {
             // Delete related ingredients and allergens
+            /** @var \App\Models\Ingredient $ingredient */
             foreach ($product->ingredients as $ingredient) {
                 $ingredient->allergens()->delete();
             }
@@ -206,6 +213,9 @@ class DemoGermanScraping extends Command
         $this->newLine();
     }
 
+    /**
+     * @param array<string, int> $stats
+     */
     private function displayDemoResults(array $stats): void
     {
         $this->info('📊 Demo Results:');

@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Product;
 use Illuminate\Console\Command;
-use Illuminate\Process\Process;
+use Illuminate\Support\Facades\Process;
 
 class ScheduledGermanScraping extends Command
 {
@@ -130,6 +130,8 @@ class ScheduledGermanScraping extends Command
 
     /**
      * Get scraping strategy based on current database size
+     * 
+     * @return array<string, mixed>
      */
     private function getScrapingStrategy(int $currentProductCount): array
     {
@@ -177,6 +179,8 @@ class ScheduledGermanScraping extends Command
 
     /**
      * Parse scraping command output to extract statistics
+     * 
+     * @return array<string, int>
      */
     private function parseScrapingOutput(string $output): array
     {

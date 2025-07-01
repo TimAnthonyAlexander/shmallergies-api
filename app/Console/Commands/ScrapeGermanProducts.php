@@ -112,6 +112,9 @@ class ScrapeGermanProducts extends Command
         }
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function scrapeProducts(string $source, int $limit, ?string $category): array
     {
         $this->line("Fetching products from {$source}...");
@@ -131,6 +134,9 @@ class ScrapeGermanProducts extends Command
         }
     }
 
+    /**
+     * @param array<string, mixed> $productData
+     */
     private function processProduct(array $productData, bool $dryRun): string
     {
         // Check if product already exists
@@ -213,6 +219,9 @@ class ScrapeGermanProducts extends Command
         }
     }
 
+    /**
+     * @param array<string, int> $stats
+     */
     private function displayResults(array $stats, bool $dryRun): void
     {
         $this->info('✅ Scraping completed!');

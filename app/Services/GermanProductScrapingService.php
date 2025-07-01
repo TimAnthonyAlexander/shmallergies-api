@@ -7,11 +7,12 @@ use Illuminate\Support\Facades\Log;
 
 class GermanProductScrapingService
 {
-    private const OPENFOODFACTS_BASE_URL = 'https://world.openfoodfacts.org';
     private const OPENFOODFACTS_API_URL = 'https://world.openfoodfacts.org/api/v2';
     
     /**
      * Scrape products from OpenFoodFacts focusing on German market
+     * 
+     * @return array<int, array<string, mixed>>
      */
     public function scrapeOpenFoodFacts(int $limit = 100, ?string $category = null): array
     {
@@ -90,6 +91,9 @@ class GermanProductScrapingService
 
     /**
      * Process and validate OpenFoodFacts product data
+     * 
+     * @param array<string, mixed> $product
+     * @return array<string, mixed>|null
      */
     private function processOpenFoodFactsProduct(array $product): ?array
     {
@@ -123,6 +127,8 @@ class GermanProductScrapingService
 
     /**
      * Extract German ingredients text from multilingual product data
+     * 
+     * @param array<string, mixed> $product
      */
     private function extractGermanIngredients(array $product): ?string
     {
@@ -191,6 +197,8 @@ class GermanProductScrapingService
 
     /**
      * Placeholder for REWE scraping (to be implemented)
+     * 
+     * @return array<int, array<string, mixed>>
      */
     public function scrapeRewe(int $limit = 100, ?string $category = null): array
     {
@@ -201,6 +209,8 @@ class GermanProductScrapingService
 
     /**
      * Placeholder for Edeka scraping (to be implemented)
+     * 
+     * @return array<int, array<string, mixed>>
      */
     public function scrapeEdeka(int $limit = 100, ?string $category = null): array
     {
@@ -211,6 +221,8 @@ class GermanProductScrapingService
 
     /**
      * Get available categories for OpenFoodFacts
+     * 
+     * @return array<string, string>
      */
     public function getAvailableCategories(): array
     {

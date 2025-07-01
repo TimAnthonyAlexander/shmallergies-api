@@ -124,6 +124,8 @@ Return ONLY the JSON object, no additional text or explanation.";
 
     /**
      * Analyze German ingredient text and extract ingredients with allergens.
+     * 
+     * @return array<string, mixed>
      */
     public function analyzeGermanIngredients(string $ingredientsText): array
     {
