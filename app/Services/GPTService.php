@@ -11,7 +11,7 @@ class GPTService
 {
     private string $apiKey;
     private string $baseUrl = 'https://api.openai.com/v1';
-    private string $model = 'gpt-4o-mini';
+    private string $model = 'gpt-4.1-mini';
 
     public function __construct()
     {
@@ -62,21 +62,25 @@ class GPTService
      */
     public function analyzeIngredientImage(string $imageBase64, string $mimeType = 'image/jpeg'): array
     {
-        $prompt = "Analyze this ingredient list image and extract all ingredients with their potential allergens. 
+        $prompt = "Analyze this ingredient list image and extract all ingredients with their potential allergens.
+
+IMPORTANT: Regardless of the language used in the image, please translate all ingredient names and allergen names to English.
 
 Please respond with a JSON object in exactly this format:
 {
   \"ingredients\": [
     {
-      \"name\": \"ingredient name\",
-      \"allergens\": [\"allergen1\", \"allergen2\"]
+      \"name\": \"ingredient name in English\",
+      \"allergens\": [\"allergen1 in English\", \"allergen2 in English\"]
     }
   ]
 }
 
-Focus on common allergens like: peanuts, tree nuts, milk/dairy, eggs, wheat/gluten, soy, fish, shellfish, sesame, corn, sulfites.
+Focus on common allergens and use these English terms: peanuts, tree nuts, milk, eggs, wheat, soy, fish, shellfish, sesame, corn, sulfites.
 
 Be thorough but conservative - only list allergens that are clearly present or likely based on the ingredient name. If an ingredient doesn't contain obvious allergens, use an empty array.
+
+Always translate ingredient names to their English equivalents (e.g., \"Zucker\" -> \"sugar\", \"Milch\" -> \"milk\", \"Weizen\" -> \"wheat\").
 
 Return ONLY the JSON object, no additional text or explanation.";
 
@@ -124,43 +128,34 @@ Return ONLY the JSON object, no additional text or explanation.";
 
     /**
      * Analyze German ingredient text and extract ingredients with allergens.
-     * 
+     *
      * @return array<string, mixed>
      */
     public function analyzeGermanIngredients(string $ingredientsText): array
     {
-        $prompt = "Analysiere diese deutsche Zutatenliste und extrahiere alle Zutaten mit ihren möglichen Allergenen.
+        $prompt = "Analyze this German ingredient list and extract all ingredients with their potential allergens.
 
-Zutatenliste: \"{$ingredientsText}\"
+IMPORTANT: Even though the input is in German, please translate all ingredient names and allergen names to English for consistency.
 
-Bitte antworte mit einem JSON-Objekt in genau diesem Format:
+Ingredient list: \"{$ingredientsText}\"
+
+Please respond with a JSON object in exactly this format:
 {
   \"ingredients\": [
     {
-      \"name\": \"Zutat-Name\",
-      \"allergens\": [\"allergen1\", \"allergen2\"]
+      \"name\": \"ingredient name in English\",
+      \"allergens\": [\"allergen1 in English\", \"allergen2 in English\"]
     }
   ]
 }
 
-Konzentriere dich auf häufige Allergene wie: Erdnüsse, Nüsse, Milch/Milchprodukte, Eier, Weizen/Gluten, Soja, Fisch, Schalentiere, Sesam, Mais, Sulfite.
+Focus on common allergens and use these English terms: peanuts, tree nuts, milk, eggs, wheat, soy, fish, shellfish, sesame, corn, sulfites.
 
-Sei gründlich aber konservativ - liste nur Allergene auf, die eindeutig vorhanden oder basierend auf dem Zutatennamen wahrscheinlich sind. Wenn eine Zutat keine offensichtlichen Allergene enthält, verwende ein leeres Array.
+Be thorough but conservative - only list allergens that are clearly present or likely based on the ingredient name. If an ingredient doesn't contain obvious allergens, use an empty array.
 
-Deutsche Allergen-Bezeichnungen verwenden:
-- \"weizen\" für Wheat/Gluten
-- \"milch\" für Dairy/Milk  
-- \"eier\" für Eggs
-- \"erdnüsse\" für Peanuts
-- \"nüsse\" für Tree nuts
-- \"soja\" für Soy
-- \"fisch\" für Fish
-- \"schalentiere\" für Shellfish
-- \"sesam\" für Sesame
-- \"mais\" für Corn
-- \"sulfite\" für Sulfites
+Always translate ingredient names to their English equivalents (e.g., \"Zucker\" -> \"sugar\", \"Milch\" -> \"milk\", \"Weizen\" -> \"wheat\", \"Eier\" -> \"eggs\").
 
-Gib NUR das JSON-Objekt zurück, ohne zusätzlichen Text oder Erklärungen.";
+Return ONLY the JSON object, no additional text or explanation.";
 
         $message = GPTMessage::text('user', $prompt);
 
