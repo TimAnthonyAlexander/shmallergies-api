@@ -24,6 +24,9 @@ class GPTService
 
     /**
      * Send a chat completion request to OpenAI.
+     * 
+     * @param array<GPTMessage|array<string, mixed>> $messages
+     * @return array<string, mixed>
      */
     public function chat(array $messages, int $maxTokens = 1000): array
     {
@@ -59,6 +62,8 @@ class GPTService
 
     /**
      * Analyze ingredient image and extract ingredients with allergens.
+     * 
+     * @return array<string, mixed>
      */
     public function analyzeIngredientImage(string $imageBase64, string $mimeType = 'image/jpeg'): array
     {
@@ -102,6 +107,8 @@ Return ONLY the JSON object, no additional text or explanation.";
 
     /**
      * Extract JSON from GPT response, handling cases where there might be extra text.
+     * 
+     * @return array<string, mixed>|null
      */
     private function extractJsonFromResponse(string $response): ?array
     {

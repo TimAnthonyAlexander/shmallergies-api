@@ -511,7 +511,7 @@ class ProductController extends Controller
     /**
      * Process ingredient image using GPT to extract ingredients and allergens.
      */
-    private function processIngredientImage(Product $product, $imageFile): void
+    private function processIngredientImage(Product $product, \Illuminate\Http\UploadedFile $imageFile): void
     {
         try {
             // Convert image to base64

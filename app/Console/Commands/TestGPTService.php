@@ -25,7 +25,7 @@ class TestGPTService extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
         $this->info('Testing GPT Service...');
 

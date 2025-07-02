@@ -5,8 +5,13 @@ namespace App\Services;
 class GPTMessage
 {
     public string $role;
+    
+    /** @var array<array<string, mixed>> */
     public array $content;
 
+    /**
+     * @param array<array<string, mixed>> $content
+     */
     public function __construct(string $role, array $content)
     {
         $this->role = $role;
@@ -41,6 +46,8 @@ class GPTMessage
 
     /**
      * Convert to array format for API request.
+     * 
+     * @return array<string, mixed>
      */
     public function toArray(): array
     {

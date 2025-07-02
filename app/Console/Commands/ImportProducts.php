@@ -27,7 +27,7 @@ class ImportProducts extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
         $filePath = $this->argument('file');
 
