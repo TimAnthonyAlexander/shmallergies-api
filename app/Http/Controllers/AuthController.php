@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -19,7 +20,7 @@ class AuthController extends Controller
      *
      * @bodyParam name string required The user's name. Example: John Doe
      * @bodyParam email string required The user's email address. Example: john@example.com
-     * @bodyParam password string required The user's password (min 8 characters). Example: password123
+     * @bodyParam password string required The user's password (min 12 characters, must contain at least one uppercase letter, one lowercase letter, one number, and one special character). Example: password123
      * @bodyParam password_confirmation string required Password confirmation. Example: password123
      *
      * @response 201 {
@@ -35,19 +36,33 @@ class AuthController extends Controller
     public function signup(Request $request): JsonResponse
     {
         $request->validate([
-            'name'     => 'required|string|max:255',
+            'name'     => 'required|string|max:255|min:2',
             'email'    => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                new \App\Rules\StrongPassword(),
+            ],
         ]);
 
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
+            'name'     => strip_tags(trim($request->name)),
+            'email'    => filter_var($request->email, FILTER_SANITIZE_EMAIL),
             'password' => Hash::make($request->password),
         ]);
 
         // Send email verification notification
         event(new Registered($user));
+
+        // Log successful registration for security monitoring
+        Log::info('New user registered', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'timestamp' => now(),
+        ]);
 
         return response()->json([
             'message' => 'User created successfully. Please check your email to verify your account.',
@@ -88,17 +103,28 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $request->validate([
-            'email'    => 'required|string|email',
+            'email'    => 'required|string|email|max:255',
             'password' => 'required|string',
         ]);
 
-        if (! Auth::attempt($request->only('email', 'password'))) {
+        // Sanitize email input
+        $email = filter_var($request->email, FILTER_SANITIZE_EMAIL);
+        
+        if (! Auth::attempt(['email' => $email, 'password' => $request->password])) {
+            // Log failed login attempt for security monitoring
+            Log::warning('Failed login attempt', [
+                'email' => $email,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now(),
+            ]);
+            
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $email)->first();
 
         // Check if email is verified
         if (! $user->hasVerifiedEmail()) {
@@ -110,12 +136,29 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Create token with expiration
+        $tokenExpiration = config('sanctum.expiration') ? now()->addMinutes(config('sanctum.expiration')) : null;
+        $token = $user->createToken('auth-token', ['*'], $tokenExpiration)->plainTextToken;
+
+        // Log successful login for security monitoring
+        Log::info('Successful login', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'timestamp' => now(),
+        ]);
 
         return response()->json([
             'message' => 'Login successful',
-            'user'    => $user,
+            'user'    => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'email_verified_at' => $user->email_verified_at,
+            ],
             'token'   => $token,
+            'expires_at' => $tokenExpiration?->toISOString(),
         ]);
     }
 
@@ -203,17 +246,47 @@ class AuthController extends Controller
     public function resendVerificationEmail(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => 'required|email|exists:users,email',
+            'email' => 'required|string|email|max:255',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        // Sanitize email input
+        $email = filter_var($request->email, FILTER_SANITIZE_EMAIL);
+        
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            // Log potential enumeration attempt
+            Log::warning('Email verification resend attempt for non-existent user', [
+                'email' => $email,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now(),
+            ]);
+            
+            return response()->json([
+                'message' => 'User not found.',
+            ], 404);
+        }
 
         if ($user->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Email is already verified.'], 400);
+            return response()->json([
+                'message' => 'Email is already verified.',
+            ], 400);
         }
 
         $user->sendEmailVerificationNotification();
 
-        return response()->json(['message' => 'Verification email sent.'], 200);
+        // Log verification email resend for security monitoring
+        Log::info('Email verification resent', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'timestamp' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Verification email sent.',
+        ]);
     }
 }

@@ -60,11 +60,26 @@ class UserAllergyController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'allergy_text' => 'required|string|max:500',
+            'allergy_text' => 'required|string|max:500|min:2',
         ]);
 
+        // Sanitize input
+        $allergyText = strip_tags(trim($request->allergy_text));
+        
+        // Check for duplicate allergies for this user
+        $existingAllergy = $request->user()->allergies()
+            ->where('allergy_text', 'LIKE', '%' . $allergyText . '%')
+            ->first();
+            
+        if ($existingAllergy) {
+            return response()->json([
+                'message' => 'This allergy already exists for your account.',
+                'existing_allergy' => $existingAllergy,
+            ], 409);
+        }
+
         $allergy = $request->user()->allergies()->create([
-            'allergy_text' => $request->allergy_text,
+            'allergy_text' => $allergyText,
         ]);
 
         return response()->json([
@@ -95,18 +110,28 @@ class UserAllergyController extends Controller
      *   }
      * }
      * @response 404 {
-     *   "message": "No query results for model [App\\Models\\UserAllergy] 1"
+     *   "message": "Allergy not found"
      * }
      */
     public function update(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'allergy_text' => 'required|string|max:500',
+            'allergy_text' => 'required|string|max:500|min:2',
         ]);
 
-        $allergy = $request->user()->allergies()->findOrFail($id);
+        $allergy = $request->user()->allergies()->find($id);
+        
+        if (!$allergy) {
+            return response()->json([
+                'message' => 'Allergy not found',
+            ], 404);
+        }
+
+        // Sanitize input
+        $allergyText = strip_tags(trim($request->allergy_text));
+        
         $allergy->update([
-            'allergy_text' => $request->allergy_text,
+            'allergy_text' => $allergyText,
         ]);
 
         return response()->json([
@@ -128,12 +153,19 @@ class UserAllergyController extends Controller
      *   "message": "Allergy deleted successfully"
      * }
      * @response 404 {
-     *   "message": "No query results for model [App\\Models\\UserAllergy] 1"
+     *   "message": "Allergy not found"
      * }
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $allergy = $request->user()->allergies()->findOrFail($id);
+        $allergy = $request->user()->allergies()->find($id);
+        
+        if (!$allergy) {
+            return response()->json([
+                'message' => 'Allergy not found',
+            ], 404);
+        }
+        
         $allergy->delete();
 
         return response()->json([

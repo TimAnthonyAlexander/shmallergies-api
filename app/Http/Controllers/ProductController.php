@@ -47,13 +47,29 @@ class ProductController extends Controller
     {
         $request->validate([
             'name'             => 'required|string|max:255',
-            'upc_code'         => 'required|string|max:255|unique:products',
-            'ingredient_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB max
+            'upc_code'         => 'required|string|max:255|unique:products|regex:/^[0-9]{8,14}$/',
+            'ingredient_image' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Removed gif, added stricter validation
+        ], [
+            'upc_code.regex' => 'UPC code must be 8-14 digits only.',
         ]);
 
         DB::beginTransaction();
 
         try {
+            // Sanitize inputs
+            $name = strip_tags($request->name);
+            $upcCode = preg_replace('/[^0-9]/', '', $request->upc_code);
+
+            // Validate file content type
+            $imageFile = $request->file('ingredient_image');
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $imageFile->getPathname());
+            finfo_close($finfo);
+            
+            if (!in_array($mimeType, ['image/jpeg', 'image/png'])) {
+                throw new \Exception('Invalid file type. Only JPEG and PNG files are allowed.');
+            }
+
             // Handle image upload
             $imagePath = null;
             if ($request->hasFile('ingredient_image')) {
@@ -61,8 +77,8 @@ class ProductController extends Controller
             }
 
             $product = Product::create([
-                'name'                  => $request->name,
-                'upc_code'              => $request->upc_code,
+                'name'                  => $name,
+                'upc_code'              => $upcCode,
                 'ingredient_image_path' => $imagePath,
             ]);
 
@@ -88,12 +104,14 @@ class ProductController extends Controller
 
             Log::error('Product creation failed', [
                 'error'        => $e->getMessage(),
-                'product_name' => $request->name,
-                'upc_code'     => $request->upc_code,
+                'product_name' => $request->name ?? 'unknown',
+                'upc_code'     => $request->upc_code ?? 'unknown',
+                'user_id'      => $request->user()?->id,
             ]);
 
             return response()->json([
-                'message' => 'Product creation failed: ' . $e->getMessage(),
+                'message' => 'Product creation failed. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while creating the product.',
             ], 500);
         }
     }
@@ -105,6 +123,7 @@ class ProductController extends Controller
      *
      * @queryParam query string required Search term for product name or UPC code. Example: coca
      * @queryParam limit integer optional Maximum number of results (1-50). Defaults to 10. Example: 20
+     * @queryParam page integer optional Page number for pagination. Defaults to 1. Example: 2
      *
      * @response 200 {
      *   "message": "Search completed",
@@ -119,28 +138,37 @@ class ProductController extends Controller
      *       "created_at": "2024-01-01T00:00:00.000000Z"
      *     }
      *   ],
-     *   "total": 1
+     *   "pagination": {
+     *     "current_page": 1,
+     *     "total": 1,
+     *     "per_page": 10,
+     *     "last_page": 1
+     *   }
      * }
      */
     public function search(Request $request): JsonResponse
     {
         $request->validate([
-            'query' => 'required|string|min:1',
+            'query' => 'required|string|min:1|max:255',
             'limit' => 'sometimes|integer|min:1|max:50',
+            'page' => 'sometimes|integer|min:1',
         ]);
 
-        $query = $request->input('query');
+        $query = strip_tags($request->input('query'));
         $limit = $request->input('limit', 10);
+        $page = $request->input('page', 1);
 
-        $products = Product::where('name', 'LIKE', "%{$query}%")
-            ->orWhere('upc_code', 'LIKE', "%{$query}%")
+        // Use proper parameter binding to prevent SQL injection
+        $products = Product::where(function ($q) use ($query) {
+                $q->where('name', 'LIKE', '%' . $query . '%')
+                  ->orWhere('upc_code', 'LIKE', '%' . $query . '%');
+            })
             ->with(['ingredients.allergens'])
-            ->limit($limit)
-            ->get();
+            ->paginate($limit, ['*'], 'page', $page);
 
         return response()->json([
             'message'  => 'Search completed',
-            'products' => $products->map(function ($product) {
+            'products' => collect($products->items())->map(function ($product) {
                 return [
                     'id'                   => $product->id,
                     'name'                 => $product->name,
@@ -153,7 +181,12 @@ class ProductController extends Controller
                     'created_at' => $product->created_at,
                 ];
             }),
-            'total' => $products->count(),
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'total' => $products->total(),
+                'per_page' => $products->perPage(),
+                'last_page' => $products->lastPage(),
+            ],
         ]);
     }
 
@@ -236,7 +269,7 @@ class ProductController extends Controller
      *
      * @group Products
      *
-     * @urlParam upcCode string required The product UPC code. Example: 049000028391
+     * @urlParam upcCode string required The UPC code to search for. Example: 049000028391
      *
      * @response 200 {
      *   "message": "Product retrieved successfully",
@@ -247,7 +280,23 @@ class ProductController extends Controller
      *     "ingredient_image_url": "/storage/ingredient-images/abc123.jpg",
      *     "created_at": "2024-01-01T00:00:00.000000Z",
      *     "updated_at": "2024-01-01T00:00:00.000000Z",
-     *     "ingredients": []
+     *     "ingredients": [
+     *       {
+     *         "id": 1,
+     *         "title": "Carbonated Water",
+     *         "allergens": []
+     *       },
+     *       {
+     *         "id": 2,
+     *         "title": "High Fructose Corn Syrup",
+     *         "allergens": [
+     *           {
+     *             "id": 1,
+     *             "name": "Corn"
+     *           }
+     *         ]
+     *       }
+     *     ]
      *   }
      * }
      * @response 404 {
@@ -256,11 +305,21 @@ class ProductController extends Controller
      */
     public function getByUpc(string $upcCode): JsonResponse
     {
-        $product = Product::where('upc_code', $upcCode)
+        // Sanitize UPC code - only allow digits
+        $sanitizedUpc = preg_replace('/[^0-9]/', '', $upcCode);
+        
+        // Validate UPC code format
+        if (empty($sanitizedUpc) || strlen($sanitizedUpc) < 8 || strlen($sanitizedUpc) > 14) {
+            return response()->json([
+                'message' => 'Invalid UPC code format. UPC codes must be 8-14 digits.',
+            ], 400);
+        }
+
+        $product = Product::where('upc_code', $sanitizedUpc)
             ->with(['ingredients.allergens'])
             ->first();
 
-        if (! $product) {
+        if (!$product) {
             return response()->json([
                 'message' => 'Product not found',
             ], 404);
@@ -269,19 +328,19 @@ class ProductController extends Controller
         return response()->json([
             'message' => 'Product retrieved successfully',
             'product' => [
-                'id'                   => $product->id,
-                'name'                 => $product->name,
-                'upc_code'             => $product->upc_code,
+                'id' => $product->id,
+                'name' => $product->name,
+                'upc_code' => $product->upc_code,
                 'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
-                'created_at'           => $product->created_at,
-                'updated_at'           => $product->updated_at,
-                'ingredients'          => $product->ingredients->map(function ($ingredient) {
+                'created_at' => $product->created_at,
+                'updated_at' => $product->updated_at,
+                'ingredients' => $product->ingredients->map(function ($ingredient) {
                     return [
-                        'id'        => $ingredient->id,
-                        'title'     => $ingredient->title,
+                        'id' => $ingredient->id,
+                        'title' => $ingredient->title,
                         'allergens' => $ingredient->allergens->map(function ($allergen) {
                             return [
-                                'id'   => $allergen->id,
+                                'id' => $allergen->id,
                                 'name' => $allergen->name,
                             ];
                         }),
@@ -296,125 +355,52 @@ class ProductController extends Controller
      *
      * @group Products
      *
-     * @queryParam page integer optional Page number for pagination. Defaults to 1. Example: 1
-     * @queryParam per_page integer optional Number of products per page (1-50). Defaults to 15. Example: 20
+     * @queryParam limit integer optional Maximum number of results per page (1-50). Defaults to 10. Example: 20
+     * @queryParam page integer optional Page number for pagination. Defaults to 1. Example: 2
      *
      * @response 200 {
      *   "message": "Products retrieved successfully",
-     *   "data": [
-     *     {
-     *       "id": 1,
-     *       "name": "Coca Cola",
-     *       "upc_code": "049000028391",
-     *       "ingredient_image_url": "/storage/ingredient-images/abc123.jpg",
-     *       "ingredients_count": 5,
-     *       "allergens_count": 2,
-     *       "created_at": "2024-01-01T00:00:00.000000Z"
-     *     }
-     *   ],
-     *   "current_page": 1,
-     *   "last_page": 1,
-     *   "per_page": 15,
-     *   "total": 1
-     * }
-     */
-    public function index(Request $request): JsonResponse
-    {
-        $request->validate([
-            'per_page' => 'sometimes|integer|min:1|max:50',
-        ]);
-
-        $perPage = $request->input('per_page', 15);
-
-        $products = Product::with(['ingredients.allergens'])
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
-
-        return response()->json([
-            'message' => 'Products retrieved successfully',
-            'data'    => $products->getCollection()->map(function ($product) {
-                return [
-                    'id'                   => $product->id,
-                    'name'                 => $product->name,
-                    'upc_code'             => $product->upc_code,
-                    'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
-                    'ingredients_count'    => $product->ingredients->count(),
-                    'allergens_count'      => $product->ingredients->sum(function ($ingredient) {
-                        return $ingredient->allergens->count();
-                    }),
-                    'created_at' => $product->created_at,
-                    'updated_at' => $product->updated_at,
-                ];
-            }),
-            'current_page' => $products->currentPage(),
-            'last_page'    => $products->lastPage(),
-            'per_page'     => $products->perPage(),
-            'total'        => $products->total(),
-        ]);
-    }
-
-    /**
-     * Get products with specific allergens.
-     *
-     * @group Products
-     *
-     * @queryParam allergens string required Comma-separated list of allergen names to filter by. Example: peanuts,dairy
-     * @queryParam limit integer optional Maximum number of results (1-50). Defaults to 10. Example: 20
-     *
-     * @response 200 {
-     *   "message": "Products with allergens retrieved successfully",
      *   "products": [
      *     {
      *       "id": 1,
      *       "name": "Coca Cola",
      *       "upc_code": "049000028391",
      *       "ingredient_image_url": "/storage/ingredient-images/abc123.jpg",
-     *       "matching_allergens": ["peanuts"],
      *       "ingredients_count": 5,
      *       "allergens_count": 2,
      *       "created_at": "2024-01-01T00:00:00.000000Z"
      *     }
      *   ],
-     *   "total": 1,
-     *   "searched_allergens": ["peanuts", "dairy"]
+     *   "pagination": {
+     *     "current_page": 1,
+     *     "total": 100,
+     *     "per_page": 10,
+     *     "last_page": 10
+     *   }
      * }
      */
-    public function getByAllergens(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'allergens' => 'required|string',
-            'limit'     => 'sometimes|integer|min:1|max:50',
+            'limit' => 'sometimes|integer|min:1|max:50',
+            'page' => 'sometimes|integer|min:1',
         ]);
 
-        $allergensList = array_map('trim', explode(',', $request->input('allergens')));
         $limit = $request->input('limit', 10);
+        $page = $request->input('page', 1);
 
-        $products = Product::whereHas('ingredients.allergens', function ($query) use ($allergensList) {
-            $query->whereIn('name', $allergensList);
-        })
-            ->with(['ingredients.allergens'])
-            ->limit($limit)
-            ->get();
+        $products = Product::with(['ingredients.allergens'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($limit, ['*'], 'page', $page);
 
         return response()->json([
-            'message'  => 'Products with allergens retrieved successfully',
-            'products' => $products->map(function ($product) use ($allergensList) {
-                $matchingAllergens = $product->ingredients
-                    ->flatMap(function ($ingredient) {
-                        return $ingredient->allergens->pluck('name');
-                    })
-                    ->filter(function ($allergen) use ($allergensList) {
-                        return in_array(strtolower($allergen), array_map('strtolower', $allergensList));
-                    })
-                    ->unique()
-                    ->values();
-
+            'message'  => 'Products retrieved successfully',
+            'products' => collect($products->items())->map(function ($product) {
                 return [
                     'id'                   => $product->id,
                     'name'                 => $product->name,
                     'upc_code'             => $product->upc_code,
                     'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
-                    'matching_allergens'   => $matchingAllergens,
                     'ingredients_count'    => $product->ingredients->count(),
                     'allergens_count'      => $product->ingredients->sum(function ($ingredient) {
                         return $ingredient->allergens->count();
@@ -422,8 +408,103 @@ class ProductController extends Controller
                     'created_at' => $product->created_at,
                 ];
             }),
-            'total'              => $products->count(),
-            'searched_allergens' => $allergensList,
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'total' => $products->total(),
+                'per_page' => $products->perPage(),
+                'last_page' => $products->lastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get products by allergens.
+     *
+     * @group Products
+     *
+     * @queryParam allergens string required Comma-separated list of allergen names. Example: milk,eggs,peanuts
+     * @queryParam limit integer optional Maximum number of results per page (1-50). Defaults to 10. Example: 20
+     * @queryParam page integer optional Page number for pagination. Defaults to 1. Example: 2
+     *
+     * @response 200 {
+     *   "message": "Products retrieved successfully",
+     *   "products": [
+     *     {
+     *       "id": 1,
+     *       "name": "Coca Cola",
+     *       "upc_code": "049000028391",
+     *       "ingredient_image_url": "/storage/ingredient-images/abc123.jpg",
+     *       "allergens": ["corn"],
+     *       "ingredients_count": 5,
+     *       "created_at": "2024-01-01T00:00:00.000000Z"
+     *     }
+     *   ],
+     *   "pagination": {
+     *     "current_page": 1,
+     *     "total": 10,
+     *     "per_page": 10,
+     *     "last_page": 1
+     *   }
+     * }
+     */
+    public function getByAllergens(Request $request): JsonResponse
+    {
+        $request->validate([
+            'allergens' => 'required|string|max:500',
+            'limit' => 'sometimes|integer|min:1|max:50',
+            'page' => 'sometimes|integer|min:1',
+        ]);
+
+        $limit = $request->input('limit', 10);
+        $page = $request->input('page', 1);
+        
+        // Sanitize and parse allergens
+        $allergenString = strip_tags($request->input('allergens'));
+        $allergens = array_map('trim', explode(',', $allergenString));
+        $allergens = array_filter($allergens, function($allergen) {
+            return !empty($allergen) && strlen($allergen) <= 50;
+        });
+
+        if (empty($allergens)) {
+            return response()->json([
+                'message' => 'No valid allergens provided',
+                'products' => [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'total' => 0,
+                    'per_page' => $limit,
+                    'last_page' => 1,
+                ],
+            ]);
+        }
+
+        $products = Product::whereHas('ingredients.allergens', function ($query) use ($allergens) {
+            $query->whereIn('name', $allergens);
+        })
+        ->with(['ingredients.allergens'])
+        ->paginate($limit, ['*'], 'page', $page);
+
+        return response()->json([
+            'message' => 'Products retrieved successfully',
+            'products' => collect($products->items())->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'upc_code' => $product->upc_code,
+                    'ingredient_image_url' => $product->ingredient_image_path ? Storage::url($product->ingredient_image_path) : null,
+                    'allergens' => $product->ingredients->flatMap(function ($ingredient) {
+                        return $ingredient->allergens->pluck('name');
+                    })->unique()->values(),
+                    'ingredients_count' => $product->ingredients->count(),
+                    'created_at' => $product->created_at,
+                ];
+            }),
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'total' => $products->total(),
+                'per_page' => $products->perPage(),
+                'last_page' => $products->lastPage(),
+            ],
         ]);
     }
 
