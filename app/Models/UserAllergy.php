@@ -8,12 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserAllergy extends Model
 {
-    use HasFactory;
-
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'user_id',
@@ -22,6 +20,8 @@ class UserAllergy extends Model
 
     /**
      * Get the user that owns the allergy.
+     *
+     * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo
     {

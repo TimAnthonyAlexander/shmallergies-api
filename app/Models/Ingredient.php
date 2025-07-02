@@ -9,12 +9,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Ingredient extends Model
 {
-    use HasFactory;
-
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'product_id',
@@ -23,6 +21,8 @@ class Ingredient extends Model
 
     /**
      * Get the product that owns the ingredient.
+     *
+     * @return BelongsTo<Product, $this>
      */
     public function product(): BelongsTo
     {
@@ -31,6 +31,8 @@ class Ingredient extends Model
 
     /**
      * Get the allergens for the ingredient.
+     *
+     * @return HasMany<Allergen, $this>
      */
     public function allergens(): HasMany
     {

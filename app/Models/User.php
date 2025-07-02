@@ -51,6 +51,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Get the allergies for the user.
+     *
+     * @return HasMany<UserAllergy, $this>
      */
     public function allergies(): HasMany
     {
