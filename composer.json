@@ -44,7 +44,12 @@
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
         ],
-        "start-server": "screen -dmS shmallergies-api php artisan serve --port=2811",
+        "start-server": "screen -dmS shmallergies-api php artisan serve --port=2810",
+        "start-ssl-proxy": "screen -dmS shmallergies-ssl-proxy local-ssl-proxy --source 2811 --target 2810 --hostname shmallergies.test",
+        "start-server-https": [
+            "@start-server",
+            "@start-ssl-proxy"
+        ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
         ],
