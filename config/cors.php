@@ -23,6 +23,7 @@ return [
         'https://shmallergies.test:2812',
         'https://localhost:2812',
         'https://localhost:5173',
+        'https://shmallergies.timanthonyalexander.de',
     ],
 
     'allowed_origins_patterns' => [],
@@ -35,4 +36,4 @@ return [
 
     'supports_credentials' => true,
 
-]; 
+];
