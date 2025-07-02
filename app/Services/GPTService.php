@@ -15,11 +15,13 @@ class GPTService
 
     public function __construct()
     {
-        $this->apiKey = config('services.openai.api_key');
+        $apiKey = config('services.openai.api_key');
 
-        if (! $this->apiKey) {
+        if (! $apiKey) {
             throw new Exception('OpenAI API key is not configured. Please set OPENAI_API_KEY in your environment.');
         }
+
+        $this->apiKey = $apiKey;
     }
 
     /**

@@ -24,11 +24,11 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name'              => fake()->name(),
-            'email'             => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password'          => static::$password ??= Hash::make('password'),
-            'remember_token'    => Str::random(10),
+            'name' => fake()->name(),
+            'email' => fake()->unique()->safeEmail(),
+            'email_verified_at' => null,
+            'password' => static::$password ??= Hash::make('Password123!'),
+            'remember_token' => Str::random(10),
         ];
     }
 
@@ -40,5 +40,40 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * Indicate that the model's email address should be verified.
+     */
+    public function verified(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'email_verified_at' => now(),
+        ]);
+    }
+
+    /**
+     * Create a user with specific password for testing
+     */
+    public function withPassword(string $password): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'password' => Hash::make($password),
+        ]);
+    }
+
+    /**
+     * Create a user with allergies for testing
+     */
+    public function withAllergies(array $allergies = ['peanuts', 'milk']): static
+    {
+        return $this->afterCreating(function (\App\Models\User $user) use ($allergies) {
+            foreach ($allergies as $allergy) {
+                \App\Models\UserAllergy::factory()->create([
+                    'user_id' => $user->id,
+                    'allergy_text' => $allergy,
+                ]);
+            }
+        });
     }
 }

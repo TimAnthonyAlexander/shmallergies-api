@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Allergen extends Model
 {
+    use HasFactory;
+
     /**
      * The attributes that are mass assignable.
      *
