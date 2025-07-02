@@ -66,6 +66,8 @@ class GPTService
 
 IMPORTANT: Regardless of the language used in the image, please translate all ingredient names and allergen names to English.
 
+Please also look for general allergen warnings like 'May contain traces of...' or 'Kann Spuren von... enthalten' and include them separately.
+
 Please respond with a JSON object in exactly this format:
 {
   \"ingredients\": [
@@ -73,8 +75,11 @@ Please respond with a JSON object in exactly this format:
       \"name\": \"ingredient name in English\",
       \"allergens\": [\"allergen1 in English\", \"allergen2 in English\"]
     }
-  ]
+  ],
+  \"general_allergens\": [\"allergen1 in English\", \"allergen2 in English\"]
 }
+
+The general_allergens array should contain allergens mentioned in warnings like 'May contain traces of X' or 'Produced in a facility that also processes X'.
 
 Focus on common allergens and use these English terms: peanuts, tree nuts, milk, eggs, wheat, soy, fish, shellfish, sesame, corn, sulfites.
 
@@ -95,6 +100,11 @@ Return ONLY the JSON object, no additional text or explanation.";
 
         if (! $jsonData || ! isset($jsonData['ingredients'])) {
             throw new Exception('Failed to parse ingredients from GPT response');
+        }
+
+        // Ensure general_allergens exists even if not provided by the API
+        if (! isset($jsonData['general_allergens'])) {
+            $jsonData['general_allergens'] = [];
         }
 
         return $jsonData;
@@ -137,6 +147,8 @@ Return ONLY the JSON object, no additional text or explanation.";
 
 IMPORTANT: Even though the input is in German, please translate all ingredient names and allergen names to English for consistency.
 
+Please also look for general allergen warnings like 'May contain traces of...' or 'Kann Spuren von... enthalten' and include them separately.
+
 Ingredient list: \"{$ingredientsText}\"
 
 Please respond with a JSON object in exactly this format:
@@ -146,8 +158,11 @@ Please respond with a JSON object in exactly this format:
       \"name\": \"ingredient name in English\",
       \"allergens\": [\"allergen1 in English\", \"allergen2 in English\"]
     }
-  ]
+  ],
+  \"general_allergens\": [\"allergen1 in English\", \"allergen2 in English\"]
 }
+
+The general_allergens array should contain allergens mentioned in warnings like 'May contain traces of X' or 'Produced in a facility that also processes X'.
 
 Focus on common allergens and use these English terms: peanuts, tree nuts, milk, eggs, wheat, soy, fish, shellfish, sesame, corn, sulfites.
 
@@ -168,6 +183,11 @@ Return ONLY the JSON object, no additional text or explanation.";
 
         if (! $jsonData || ! isset($jsonData['ingredients'])) {
             throw new Exception('Failed to parse ingredients from GPT response for German text');
+        }
+
+        // Ensure general_allergens exists even if not provided by the API
+        if (! isset($jsonData['general_allergens'])) {
+            $jsonData['general_allergens'] = [];
         }
 
         return $jsonData;

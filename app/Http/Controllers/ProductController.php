@@ -444,12 +444,20 @@ class ProductController extends Controller
             // Analyze the ingredient image
             $analysis = $gptService->analyzeIngredientImage($imageBase64, $mimeType);
 
+            // Track the first ingredient ID for handling general allergens
+            $firstIngredientId = null;
+            
             // Save ingredients and allergens to database
             foreach ($analysis['ingredients'] as $ingredientData) {
                 $ingredient = Ingredient::create([
                     'product_id' => $product->id,
                     'title'      => $ingredientData['name'],
                 ]);
+
+                // Save the first ingredient ID
+                if ($firstIngredientId === null) {
+                    $firstIngredientId = $ingredient->id;
+                }
 
                 // Save allergens for this ingredient
                 if (! empty($ingredientData['allergens'])) {
@@ -462,9 +470,35 @@ class ProductController extends Controller
                 }
             }
 
+            // Handle general allergens (like "May contain traces of...")
+            if (!empty($analysis['general_allergens']) && is_array($analysis['general_allergens'])) {
+                // If we have no ingredients but have general allergens, create a placeholder ingredient
+                if ($firstIngredientId === null) {
+                    $placeholderIngredient = Ingredient::create([
+                        'product_id' => $product->id,
+                        'title'      => 'General Allergen Information',
+                    ]);
+                    $firstIngredientId = $placeholderIngredient->id;
+                }
+                
+                // Add the general allergens to the first ingredient
+                foreach ($analysis['general_allergens'] as $allergenName) {
+                    Allergen::create([
+                        'ingredient_id' => $firstIngredientId,
+                        'name'          => $allergenName,
+                    ]);
+                }
+                
+                Log::info('General allergens processed', [
+                    'product_id'        => $product->id,
+                    'general_allergens' => $analysis['general_allergens'],
+                ]);
+            }
+
             Log::info('Ingredient analysis completed', [
                 'product_id'        => $product->id,
                 'ingredients_count' => count($analysis['ingredients']),
+                'has_general_allergens' => !empty($analysis['general_allergens']),
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to process ingredient image', [
