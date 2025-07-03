@@ -81,9 +81,10 @@ Please respond with a JSON object in exactly this format:
 
 The general_allergens array should contain allergens mentioned in warnings like 'May contain traces of X' or 'Produced in a facility that also processes X'.
 
-Focus on common allergens and use these English terms: peanuts, tree nuts, milk, eggs, wheat, soy, fish, shellfish, sesame, corn, sulfites.
+Include both common and rare allergens. Common allergens include: peanuts, tree nuts, milk, eggs, wheat, soy, fish, shellfish, sesame, corn, sulfites. 
+Also include rare or less common allergens such as: fructose, histamine, salicylates, nightshades, gluten (beyond wheat), lactose, legumes (beyond peanuts/soy), specific fruits, food additives/colorings, and any other potential allergens.
 
-Be thorough but conservative - only list allergens that are clearly present or likely based on the ingredient name. If an ingredient doesn't contain obvious allergens, use an empty array.
+Be thorough and include ANY ingredient that could potentially cause allergic reactions or intolerances. If an ingredient doesn't contain obvious allergens, use an empty array.
 
 Always translate ingredient names to their English equivalents (e.g., \"Zucker\" -> \"sugar\", \"Milch\" -> \"milk\", \"Weizen\" -> \"wheat\").
 
@@ -164,9 +165,10 @@ Please respond with a JSON object in exactly this format:
 
 The general_allergens array should contain allergens mentioned in warnings like 'May contain traces of X' or 'Produced in a facility that also processes X'.
 
-Focus on common allergens and use these English terms: peanuts, tree nuts, milk, eggs, wheat, soy, fish, shellfish, sesame, corn, sulfites.
+Include both common and rare allergens. Common allergens include: peanuts, tree nuts, milk, eggs, wheat, soy, fish, shellfish, sesame, corn, sulfites. 
+Also include rare or less common allergens such as: fructose, histamine, salicylates, nightshades, gluten (beyond wheat), lactose, legumes (beyond peanuts/soy), specific fruits, food additives/colorings, and any other potential allergens.
 
-Be thorough but conservative - only list allergens that are clearly present or likely based on the ingredient name. If an ingredient doesn't contain obvious allergens, use an empty array.
+Be thorough and include ANY ingredient that could potentially cause allergic reactions or intolerances. If an ingredient doesn't contain obvious allergens, use an empty array.
 
 Always translate ingredient names to their English equivalents (e.g., \"Zucker\" -> \"sugar\", \"Milch\" -> \"milk\", \"Weizen\" -> \"wheat\", \"Eier\" -> \"eggs\").
 

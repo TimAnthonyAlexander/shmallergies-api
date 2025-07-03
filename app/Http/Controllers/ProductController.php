@@ -309,16 +309,23 @@ class ProductController extends Controller
             $gptService = new GPTService();
             
             // First try OpenFoodFacts as it's likely to have the most comprehensive database
+            Log::debug('Calling OpenFoodFacts API for UPC', ['upc_code' => $upcCode]);
             $productData = $scrapingService->searchOpenFoodFactsByUpc($upcCode);
+            Log::debug('OpenFoodFacts API response', [
+                'found' => !empty($productData),
+                'data_preview' => empty($productData) ? null : array_intersect_key($productData, array_flip(['name', 'upc_code']))
+            ]);
             
             if (empty($productData)) {
                 // If not found in OpenFoodFacts, try other sources
                 // Rewe
+                Log::debug('OpenFoodFacts lookup failed, trying Rewe');
                 $productData = $scrapingService->searchReweByUpc($upcCode);
             }
             
             if (empty($productData)) {
                 // Edeka
+                Log::debug('Rewe lookup failed, trying Edeka');
                 $productData = $scrapingService->searchEdekaByUpc($upcCode);
             }
             
@@ -340,6 +347,7 @@ class ProductController extends Controller
             // If we have ingredients text, analyze and store them
             if (!empty($productData['ingredients_text'])) {
                 // Analyze ingredients with GPT
+                Log::debug('Analyzing ingredients with GPT', ['ingredients_text' => $productData['ingredients_text']]);
                 $analysis = $gptService->analyzeGermanIngredients($productData['ingredients_text']);
                 
                 foreach ($analysis['ingredients'] as $ingredientData) {
