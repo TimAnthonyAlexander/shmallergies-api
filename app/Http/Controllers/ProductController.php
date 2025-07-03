@@ -260,6 +260,11 @@ class ProductController extends Controller
             ->with(['ingredients.allergens'])
             ->first();
 
+        // If product not found in database, attempt to import from external source
+        if (! $product) {
+            $product = $this->importProductFromExternalSource($upcCode);
+        }
+
         if (! $product) {
             return response()->json([
                 'message' => 'Product not found',
@@ -289,6 +294,94 @@ class ProductController extends Controller
                 }),
             ],
         ]);
+    }
+
+    /**
+     * Import a product from an external source using its UPC code.
+     */
+    private function importProductFromExternalSource(string $upcCode): ?Product
+    {
+        try {
+            Log::info('Attempting to import product from external source', ['upc_code' => $upcCode]);
+            
+            // Create an instance of the scraping service
+            $scrapingService = new \App\Services\GermanProductScrapingService();
+            $gptService = new GPTService();
+            
+            // First try OpenFoodFacts as it's likely to have the most comprehensive database
+            $productData = $scrapingService->searchOpenFoodFactsByUpc($upcCode);
+            
+            if (empty($productData)) {
+                // If not found in OpenFoodFacts, try other sources
+                // Rewe
+                $productData = $scrapingService->searchReweByUpc($upcCode);
+            }
+            
+            if (empty($productData)) {
+                // Edeka
+                $productData = $scrapingService->searchEdekaByUpc($upcCode);
+            }
+            
+            if (empty($productData)) {
+                Log::info('Product not found in external sources', ['upc_code' => $upcCode]);
+                return null;
+            }
+            
+            // Start a database transaction
+            DB::beginTransaction();
+            
+            // Create new product
+            $product = Product::create([
+                'name' => $productData['name'],
+                'upc_code' => $upcCode,
+                'ingredient_image_path' => null, // No image for automatically imported products
+            ]);
+            
+            // If we have ingredients text, analyze and store them
+            if (!empty($productData['ingredients_text'])) {
+                // Analyze ingredients with GPT
+                $analysis = $gptService->analyzeGermanIngredients($productData['ingredients_text']);
+                
+                foreach ($analysis['ingredients'] as $ingredientData) {
+                    $ingredient = Ingredient::create([
+                        'product_id' => $product->id,
+                        'title' => $ingredientData['name'],
+                    ]);
+                    
+                    // Store allergens
+                    if (!empty($ingredientData['allergens'])) {
+                        foreach ($ingredientData['allergens'] as $allergenName) {
+                            Allergen::create([
+                                'ingredient_id' => $ingredient->id,
+                                'name' => $allergenName,
+                            ]);
+                        }
+                    }
+                }
+            }
+            
+            DB::commit();
+            
+            Log::info('Successfully imported product from external source', [
+                'upc_code' => $upcCode,
+                'product_id' => $product->id,
+                'product_name' => $product->name
+            ]);
+            
+            // Return the newly created product with its relationships
+            return $product->load('ingredients.allergens');
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Failed to import product from external source', [
+                'upc_code' => $upcCode,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return null;
+        }
     }
 
     /**

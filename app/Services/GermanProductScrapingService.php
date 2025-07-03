@@ -239,4 +239,70 @@ class GermanProductScrapingService
             'confectionery' => 'Süßwaren',
         ];
     }
+    
+    /**
+     * Search OpenFoodFacts for a specific product by UPC code
+     * 
+     * @param string $upcCode
+     * @return array<string, mixed>|null
+     */
+    public function searchOpenFoodFactsByUpc(string $upcCode): ?array
+    {
+        try {
+            Log::info('Searching OpenFoodFacts by UPC code', ['upc_code' => $upcCode]);
+            
+            $response = Http::timeout(15)
+                ->get(self::OPENFOODFACTS_API_URL . '/product/' . $upcCode . '.json');
+                
+            if (!$response->successful()) {
+                Log::warning('OpenFoodFacts product lookup failed', [
+                    'upc_code' => $upcCode,
+                    'status' => $response->status()
+                ]);
+                return null;
+            }
+            
+            $data = $response->json();
+            
+            // Check if product was found
+            if (empty($data['product']) || $data['status'] !== 1) {
+                return null;
+            }
+            
+            return $this->processOpenFoodFactsProduct($data['product']);
+            
+        } catch (\Exception $e) {
+            Log::error('Error searching OpenFoodFacts by UPC', [
+                'upc_code' => $upcCode,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+    
+    /**
+     * Search REWE for a product by UPC code
+     * 
+     * @param string $upcCode
+     * @return array<string, mixed>|null
+     */
+    public function searchReweByUpc(string $upcCode): ?array
+    {
+        // TODO: Implement real REWE API integration
+        Log::info('REWE UPC search not yet implemented', ['upc_code' => $upcCode]);
+        return null;
+    }
+    
+    /**
+     * Search Edeka for a product by UPC code
+     * 
+     * @param string $upcCode
+     * @return array<string, mixed>|null
+     */
+    public function searchEdekaByUpc(string $upcCode): ?array
+    {
+        // TODO: Implement real Edeka API integration
+        Log::info('Edeka UPC search not yet implemented', ['upc_code' => $upcCode]);
+        return null;
+    }
 } 
