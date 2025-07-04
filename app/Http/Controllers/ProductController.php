@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Services\GPTService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -48,7 +49,7 @@ class ProductController extends Controller
         $request->validate([
             'name'             => 'required|string|max:255',
             'upc_code'         => 'required|string|max:255|unique:products',
-            'ingredient_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB max
+            'ingredient_image' => 'required|image|mimes:jpeg,png,jpg,gif,heic,heif|max:2048', // 2MB max
         ]);
 
         DB::beginTransaction();
@@ -57,7 +58,49 @@ class ProductController extends Controller
             // Handle image upload
             $imagePath = null;
             if ($request->hasFile('ingredient_image')) {
-                $imagePath = $request->file('ingredient_image')->store('ingredient-images', 'public');
+                $imageFile = $request->file('ingredient_image');
+                $extension = strtolower($imageFile->getClientOriginalExtension());
+                $mimeType = $imageFile->getClientMimeType();
+                
+                // Convert HEIC/HEIF to PNG if possible
+                if (in_array($extension, ['heic', 'heif']) || strpos($mimeType, 'heic') !== false || strpos($mimeType, 'heif') !== false) {
+                    try {
+                        if (extension_loaded('imagick')) {
+                            $imagick = new \Imagick();
+                            $imagick->readImage($imageFile->getRealPath());
+                            $imagick->setImageFormat('png');
+                            $tempPath = tempnam(sys_get_temp_dir(), 'heic_converted_') . '.png';
+                            $imagick->writeImage($tempPath);
+                            
+                            // Store the converted image
+                            $imagePath = Storage::disk('public')->putFile(
+                                'ingredient-images', 
+                                new \Illuminate\Http\UploadedFile(
+                                    $tempPath,
+                                    pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME) . '.png',
+                                    'image/png',
+                                    null,
+                                    true
+                                )
+                            );
+                            
+                            @unlink($tempPath);
+                        } else {
+                            // Fallback to storing original
+                            $imagePath = $imageFile->store('ingredient-images', 'public');
+                            Log::warning('Imagick extension not available for HEIC conversion during upload');
+                        }
+                    } catch (\Exception $e) {
+                        // Log error and fallback to storing original
+                        Log::error('HEIC conversion failed during upload', [
+                            'error' => $e->getMessage(),
+                        ]);
+                        $imagePath = $imageFile->store('ingredient-images', 'public');
+                    }
+                } else {
+                    // Store non-HEIC image normally
+                    $imagePath = $imageFile->store('ingredient-images', 'public');
+                }
             }
 
             $product = Product::create([
@@ -534,10 +577,40 @@ class ProductController extends Controller
     private function processIngredientImage(Product $product, $imageFile): void
     {
         try {
-            // Convert image to base64
-            $imageContent = file_get_contents($imageFile->getRealPath());
-            $imageBase64 = base64_encode($imageContent);
+            // Check if the image is HEIC/HEIF format and convert if needed
             $mimeType = $imageFile->getClientMimeType();
+            $extension = strtolower($imageFile->getClientOriginalExtension());
+            
+            if (in_array($extension, ['heic', 'heif']) || strpos($mimeType, 'heic') !== false || strpos($mimeType, 'heif') !== false) {
+                try {
+                    // Check if imagick is available
+                    if (extension_loaded('imagick')) {
+                        $imagick = new \Imagick();
+                        $imagick->readImage($imageFile->getRealPath());
+                        $imagick->setImageFormat('png');
+                        $tempPath = tempnam(sys_get_temp_dir(), 'heic_converted_') . '.png';
+                        $imagick->writeImage($tempPath);
+                        $imageContent = file_get_contents($tempPath);
+                        $mimeType = 'image/png';
+                        @unlink($tempPath);
+                    } else {
+                        // Fallback if no conversion is possible
+                        $imageContent = file_get_contents($imageFile->getRealPath());
+                        Log::warning('Imagick extension not available for HEIC conversion');
+                    }
+                } catch (\Exception $e) {
+                    Log::error('HEIC conversion failed', [
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Fallback to original file if conversion fails
+                    $imageContent = file_get_contents($imageFile->getRealPath());
+                }
+            } else {
+                // For non-HEIC images, just get the content
+                $imageContent = file_get_contents($imageFile->getRealPath());
+            }
+            
+            $imageBase64 = base64_encode($imageContent);
 
             // Initialize GPT service
             $gptService = new GPTService();
